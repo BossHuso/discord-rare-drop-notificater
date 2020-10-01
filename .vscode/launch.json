@@ -12,10 +12,10 @@
     },
     {
       "type": "java",
-      "name": "Debug (Launch)-ExamplePluginTest<example>",
+      "name": "Plugin Test",
       "request": "launch",
-      "mainClass": "com.example.ExamplePluginTest",
-      "projectName": "example"
+      "mainClass": "com.masterkenth.DiscordRareDropNotificaterPluginTest",
+      "projectName": "discordraredropnotificater"
     }
   ]
 }
