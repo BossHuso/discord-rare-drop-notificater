@@ -5,6 +5,13 @@ import org.json.JSONObject;
 import java.io.IOException;
 
 import java.util.concurrent.CompletableFuture;
+import java.util.function.Supplier;
+
+import com.gargoylesoftware.htmlunit.SilentCssErrorHandler;
+import com.gargoylesoftware.htmlunit.WebClient;
+import com.gargoylesoftware.htmlunit.html.DomNode;
+import com.gargoylesoftware.htmlunit.html.HtmlPage;
+import com.gargoylesoftware.htmlunit.javascript.SilentJavaScriptErrorListener;
 
 import okhttp3.HttpUrl;
 import okhttp3.OkHttpClient;
@@ -21,6 +28,7 @@ public class ApiTool {
   private static final String API_ROOT = "api.osrsbox.com";
   private static final String API_PATH_NPCS = "monsters";
   private static final String API_PATH_ITEMS = "items";
+  private static final String WIKI_ROOT = "oldschool.runescape.wiki";
   private static ApiTool _instance;
   
   private OkHttpClient httpClient = new OkHttpClient();
@@ -32,27 +40,11 @@ public class ApiTool {
     return _instance;
   }
 
-  public CompletableFuture<ResponseBody> postRaw(String url, String data, String type) {
-    Request request = new Request.Builder()
-      .url(url)
-      .post(RequestBody.create(data, MediaType.parse(type)))
-      .build();
-    
-    return callRequest(request);
-  }
-
-  public CompletableFuture<Void> postFormImage(String url, byte[] imageBytes, String type) {
-    MultipartBody.Builder requestBuilder = new MultipartBody.Builder()
-    .setType(MultipartBody.FORM)
-    .addFormDataPart("file", "image.png", RequestBody.create(imageBytes, MediaType.parse(type)));
-
-    Request request = new Request.Builder()
-    .url(url)
-    .post(requestBuilder.build())
-    .build();
-
-    return callRequest(request)
-    .thenAccept(rb -> {});
+  public WebClient getWebClient() {
+    WebClient htmlClient = new WebClient();
+    htmlClient.setCssErrorHandler(new SilentCssErrorHandler());
+    htmlClient.setJavaScriptErrorListener(new SilentJavaScriptErrorListener());
+    return htmlClient;
   }
 
   public CompletableFuture<JSONObject> getNPC(int npcId) {
@@ -83,6 +75,61 @@ public class ApiTool {
       .build();
 
     return CallRequestJson(request);
+  }
+
+  public CompletableFuture<String> getIconUrl(int itemId, String itemName) {
+    return CompletableFuture.supplyAsync(new Supplier<String>() {
+      @Override
+      public String get() {
+        HttpUrl baseUrl = new HttpUrl.Builder()
+        .host(WIKI_ROOT)
+        .scheme("https")
+        .build();
+  
+        HttpUrl url = new HttpUrl.Builder()
+          .host(WIKI_ROOT)
+          .scheme("https")
+          .addPathSegments("w/Special:Lookup")
+          .addQueryParameter("type", "item")
+          .addQueryParameter("id", "" + itemId)
+          .addQueryParameter("name", itemName)
+          .build();
+
+        try {
+          HtmlPage page = getWebClient().getPage(url.toString());
+          DomNode imgNode = page.querySelector("td.inventory-image a.image img");
+          String localIconPath = imgNode.getAttributes().getNamedItem("src").getNodeValue().substring(1);
+          String absoluteIconPath = baseUrl.toString() + localIconPath;
+          return absoluteIconPath;    
+        } catch (Exception e) {
+          System.err.println("Unable to get icon url for " + itemId + " " + itemName + ": " + e.getMessage() + "(" + url.toString() + ")");
+          return null;
+        }
+      }
+    });
+  }
+
+  public CompletableFuture<ResponseBody> postRaw(String url, String data, String type) {
+    Request request = new Request.Builder()
+      .url(url)
+      .post(RequestBody.create(data, MediaType.parse(type)))
+      .build();
+    
+    return callRequest(request);
+  }
+
+  public CompletableFuture<Void> postFormImage(String url, byte[] imageBytes, String type) {
+    MultipartBody.Builder requestBuilder = new MultipartBody.Builder()
+    .setType(MultipartBody.FORM)
+    .addFormDataPart("file", "image.png", RequestBody.create(imageBytes, MediaType.parse(type)));
+
+    Request request = new Request.Builder()
+    .url(url)
+    .post(requestBuilder.build())
+    .build();
+
+    return callRequest(request)
+    .thenAccept(rb -> {});
   }
 
   private CompletableFuture<ResponseBody> callRequest(Request request) {
