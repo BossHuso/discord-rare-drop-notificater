@@ -6,8 +6,8 @@ import net.runelite.client.config.ConfigItem;
 
 @ConfigGroup("discordraredropnotificater")
 public interface DiscordRareDropNotificaterConfig extends Config {
-	@ConfigItem(keyName = "greeting", name = "Welcome Greeting", description = "The message to show to the user when they login")
-	default String greeting() {
-		return "Hello";
+	@ConfigItem(keyName = "webhookurl", name = "Discord webhook URL", description = "The Discord Webhook URL to use")
+	default String webhookUrl() {
+		return "";
 	}
 }
