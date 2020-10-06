@@ -186,9 +186,6 @@ public class DiscordRareDropNotificaterPlugin extends Plugin {
 			author.setIcon_url(playerIconUrl);
 		}
 
-		Image thumbnail = new Image();
-		thumbnail.setUrl(getItemIconUrl(itemId));
-
 		Field rarityField = new Field();
 		rarityField.setName("Rarity");
 		rarityField.setValue(getItemRarityString(rarity));
@@ -201,15 +198,21 @@ public class DiscordRareDropNotificaterPlugin extends Plugin {
 
 		Embed embed = new Embed();
 		embed.setAuthor(author);
-		embed.setThumbnail(thumbnail);
 		embed.setFields(new Field[]{ rarityField, valueField });
+
+		Image thumbnail = new Image();
+		CompletableFuture<Void> iconFuture = getItemIconUrl(itemId)
+		.thenAccept(iconUrl -> {
+			thumbnail.setUrl(iconUrl);
+			embed.setThumbnail(thumbnail);
+		});
 		
 		CompletableFuture<Void> descFuture = getNotificationDescription(itemId, npc, eventName)
 		.thenAccept(notifDesc -> {
 			embed.setDescription(notifDesc);
 		});
 	
-		return CompletableFuture.allOf(descFuture)
+		return CompletableFuture.allOf(descFuture, iconFuture)
 		.thenCompose(_v -> {
 			Webhook webhookData = new Webhook();
 			webhookData.setEmbeds(new Embed[]{ embed });
@@ -282,7 +285,6 @@ public class DiscordRareDropNotificaterPlugin extends Plugin {
 	}
 
 	private String getItemValueString(int itemId) {
-		// TODO: Return correct value string
 		ItemComposition itemComp = itemManager.getItemComposition(itemId);
 		return "```fix\n" + NumberFormat.getNumberInstance(Locale.US).format(itemComp.getPrice()) + " GP\n```";
 	}
@@ -291,9 +293,9 @@ public class DiscordRareDropNotificaterPlugin extends Plugin {
 		return "```glsl\n# 1/" + (1/rarity) + " (" + (rarity*100f) + "%)\n```";
 	}
 
-	private String getItemIconUrl(int itemId) {
-		// TODO: Return correct item icon
-		return "";
+	private CompletableFuture<String> getItemIconUrl(int itemId) {
+		ItemComposition itemComp = itemManager.getItemComposition(itemId);
+		return ApiTool.getInstance().getIconUrl(itemId, itemComp.getName());
 	}
 
 	private String getPlayerIconUrl() {
