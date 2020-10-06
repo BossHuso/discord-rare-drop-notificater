@@ -1,6 +1,5 @@
 package com.masterkenth;
 
-import java.util.HashMap;
 import java.util.Map;
 import static java.util.Map.entry;
 import net.runelite.api.ItemID;
