@@ -100,26 +100,7 @@ public class DiscordRareDropNotificaterPlugin extends Plugin {
 		}
 
 		CompletableFuture.allOf(futures.toArray(new CompletableFuture[futures.size()]))
-		.thenCompose(_v -> {
-			boolean gotRare = false;
-			for (CompletableFuture<Boolean> future : futures) {
-				try {
-					if(future.get()) {
-						gotRare = true;
-						break;
-					}
-				} catch (Exception e) {
-					log.warn("got bad future", e);
-					continue;
-				}
-			}
-
-			if(gotRare) {
-				return sendScreenshot(config.webhookUrl());
-			} else {
-				return CompletableFuture.completedStage(null);
-			}
-		});
+		.thenAccept(_v -> sendScreenshotIfAnyTrue(futures));
 	}
 
 	@Subscribe
@@ -132,40 +113,58 @@ public class DiscordRareDropNotificaterPlugin extends Plugin {
 		}
 
 		Collection<ItemStack> items = lootReceived.getItems();
-		List<Boolean> list = new ArrayList<Boolean>();
+		List<CompletableFuture<Boolean>> futures = new ArrayList<CompletableFuture<Boolean>>();
 		for(ItemStack item : items) {
-			list.add(processItemRarityEvent(lootReceived.getName(), item.getId(), item.getQuantity()));
+			futures.add(processItemRarityEvent(lootReceived.getName(), item.getId(), item.getQuantity()));
 		}
 
-		if(list.stream().anyMatch(v -> v == true)) {
-			sendScreenshot(config.webhookUrl());
-		}
+		CompletableFuture.allOf(futures.toArray(new CompletableFuture[futures.size()]))
+		.thenAccept(_v -> sendScreenshotIfAnyTrue(futures));
 	}
 
-	private boolean processItemRarityEvent(String eventName, int itemId, int quantity) {
+	private CompletableFuture<Boolean> processItemRarityEvent(String eventName, int itemId, int quantity) {
 		log.info("ProcessItemRarityEvent " + eventName + " " + itemId + " (" + itemManager.getItemComposition(itemId).getName() + ")");
 		float rarity = rarityChecker.CheckRarityEvent(eventName, itemId);
 		if(rarity >= 0) {
 			log.info("oof " + rarity);
 			log.info("ProcessItemRarityEvent " + eventName + " " + itemId + " (" + itemManager.getItemComposition(itemId).getName() + ") 1/" + (1f/rarity));
-			QueueLootNotification(getPlayerName(), getPlayerIconUrl(), itemId, quantity, rarity, null, eventName, config.webhookUrl());
-			return true;
+			return QueueLootNotification(getPlayerName(), getPlayerIconUrl(), itemId, quantity, rarity, null, eventName, config.webhookUrl())
+			.thenApply(_v -> true);
 		}
-		return false;
+		return CompletableFuture.completedFuture(false);
 	}
 
 	private CompletableFuture<Boolean> processItemRarityNPC(NPC npc, int itemId, int quantity) {
 		log.info("ProcessItemRarityNPC " + npc.getName() + " " + itemId + " (" + itemManager.getItemComposition(itemId).getName() + ")");
 		return rarityChecker.CheckRarityNPC(npc.getId(), itemId)
-		.thenApply(rarity -> {
+		.thenCompose(rarity -> {
 			if(rarity >= 0) {
 				log.info("ProcessItemRarityNPC " + npc.getName() + " " + itemId + " (" + itemManager.getItemComposition(itemId).getName() + ") 1/" + (1f/rarity));
-				QueueLootNotification(getPlayerName(), getPlayerIconUrl(), itemId, quantity, rarity, npc, null, config.webhookUrl());
-				return true;
+				return QueueLootNotification(getPlayerName(), getPlayerIconUrl(), itemId, quantity, rarity, npc, null, config.webhookUrl())
+				.thenApply(_v -> true);
 			} else {
-				return false;
+				return CompletableFuture.completedFuture(false);
 			}
 		});
+	}
+
+	private void sendScreenshotIfAnyTrue(List<CompletableFuture<Boolean>> futures) {
+		boolean gotRare = false;
+		for (CompletableFuture<Boolean> future : futures) {
+			try {
+				if(future.get()) {
+					gotRare = true;
+					break;
+				}
+			} catch (Exception e) {
+				log.warn("got bad future", e);
+				continue;
+			}
+		}
+
+		if(gotRare) {
+			sendScreenshot(config.webhookUrl());
+		}
 	}
 
 	private CompletableFuture<Void> QueueLootNotification(
