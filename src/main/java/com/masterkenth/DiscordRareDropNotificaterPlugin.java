@@ -56,7 +56,7 @@ public class DiscordRareDropNotificaterPlugin extends Plugin {
 
 	@Inject
 	private DrawManager drawManager;
-	
+
 	private final RarityChecker rarityChecker = new RarityChecker();
 
 	@Override
@@ -130,21 +130,33 @@ public class DiscordRareDropNotificaterPlugin extends Plugin {
 		if(rarity >= 0) {
 			log.info("ProcessItemRarityEvent " + eventName + " " + itemId + " (" + itemManager.getItemComposition(itemId).getName() + ") 1/" + (1f/rarity));
 			queueScreenshot();
-			return QueueLootNotification(getPlayerName(), getPlayerIconUrl(), itemId, quantity, rarity, null, eventName, config.webhookUrl())
+			return QueueLootNotification(getPlayerName(), getPlayerIconUrl(), itemId, quantity, rarity, -1, -1, null, eventName, config.webhookUrl())
 			.thenApply(_v -> true);
 		}
 		return CompletableFuture.completedFuture(false);
 	}
 
 	private CompletableFuture<Boolean> processItemRarityNPC(NPC npc, int itemId, int quantity) {
-		log.info("ProcessItemRarityNPC " + npc.getName() + " " + itemId + " (" + itemManager.getItemComposition(itemId).getName() + ")");
-		return rarityChecker.CheckRarityNPC(npc.getId(), itemId)
+		int npcId = npc.getId();
+		int npcCombatLevel = npc.getCombatLevel();
+		String npcName = npc.getName();
+		log.info("ProcessItemRarityNPC " + npcName + " " + itemId + " (" + itemManager.getItemComposition(itemId).getName() + ")");
+		return rarityChecker.CheckRarityNPC(npcId, itemId)
 		.thenCompose(rarity -> {
 			if(rarity >= 0) {
-				log.info("ProcessItemRarityNPC " + npc.getName() + " " + itemId + " (" + itemManager.getItemComposition(itemId).getName() + ") 1/" + (1f/rarity));
+				CompletableFuture<Boolean> f = new CompletableFuture<>();
+				log.info("ProcessItemRarityNPC " + npcName + " " + itemId + " (" + itemManager.getItemComposition(itemId).getName() + ") 1/" + (1f/rarity));
 				queueScreenshot();
-				return QueueLootNotification(getPlayerName(), getPlayerIconUrl(), itemId, quantity, rarity, npc, null, config.webhookUrl())
-				.thenApply(_v -> true);
+				QueueLootNotification(getPlayerName(), getPlayerIconUrl(), itemId, quantity, rarity, npcId, npcCombatLevel, npcName, null, config.webhookUrl())
+				.handle((_v, e) -> {
+					if(e != null) {
+						f.completeExceptionally(e);
+					} else {
+						f.complete(true);
+					}
+					return null;
+				});
+				return f;
 			} else {
 				return CompletableFuture.completedFuture(false);
 			}
@@ -172,7 +184,9 @@ public class DiscordRareDropNotificaterPlugin extends Plugin {
 		int itemId, 
 		int quantity, 
 		float rarity, 
-		NPC npc,
+		int npcId, 
+		int npcCombatLevel, 
+		String npcName,
 		String eventName,
 		String webhookUrl)
 	{
@@ -206,11 +220,10 @@ public class DiscordRareDropNotificaterPlugin extends Plugin {
 			embed.setThumbnail(thumbnail);
 		});
 		
-		CompletableFuture<Void> descFuture = getNotificationDescription(itemId, npc, eventName)
+		CompletableFuture<Void> descFuture = getNotificationDescription(itemId, npcId, npcCombatLevel, npcName, eventName)
 		.handle((notifDesc, e) -> {
-			log.info("Desc " + notifDesc);
 			if(e != null) {
-				log.error("unable to get item desc for " + itemId, e);
+				log.error("unable to get item desc for " + itemId + " (" + e.getMessage() + ")");
 			}
 			embed.setDescription(notifDesc);
 			return null;
@@ -254,7 +267,7 @@ public class DiscordRareDropNotificaterPlugin extends Plugin {
 
 	// TODO: Add Pet notification
 
-	private CompletableFuture<String> getNotificationDescription(int itemId, NPC npc, String eventName) {
+	private CompletableFuture<String> getNotificationDescription(int itemId, int npcId, int npcCombatLevel, String npcName, String eventName) {
 		ItemComposition itemComp = itemManager.getItemComposition(itemId);		
 
 		return ApiTool.getInstance().getItem(itemId)
@@ -262,18 +275,18 @@ public class DiscordRareDropNotificaterPlugin extends Plugin {
 			String itemUrl = itemJson.getString("wiki_url");
 			String baseMsg = "Just got [" + itemComp.getName() + "](" + itemUrl + ")";
 
-			if(npc != null) {
-				return ApiTool.getInstance().getNPC(npc.getId())
+			if(npcId >= 0) {
+				return ApiTool.getInstance().getNPC(npcId)
 				.thenApply(npcJson -> {
 					String npcUrl = npcJson.getString("wiki_url");
-					String fullMsg = baseMsg + " from lvl " + npc.getCombatLevel() + " [" + npc.getName() + "](" + npcUrl +")";
+					String fullMsg = baseMsg + " from lvl " + npcCombatLevel + " [" + npcName + "](" + npcUrl +")";
 					return fullMsg;
 				})
 				.exceptionally(e -> {
-					log.error("unable to fetch NPC info for " + npc.getId(), e);
-					return baseMsg + " from lvl " + npc.getCombatLevel() + " " + npc.getName();
+					log.error("!= NPC info for " + npcId + " (" + e.getMessage() + ")");
+					return baseMsg + " from lvl " + npcCombatLevel + " " + npcName;
 				});
-			} else {
+			} else if(eventName != null) {
 				String eventUrl = HttpUrl.parse("https://oldschool.runescape.wiki/")
 				.newBuilder()
 				.addPathSegments("w/Special:Search")
@@ -282,6 +295,8 @@ public class DiscordRareDropNotificaterPlugin extends Plugin {
 				.toString();
 				String fullMsg = baseMsg + " from [" + eventName + "](" + eventUrl + ")";
 				return CompletableFuture.completedFuture(fullMsg);
+			} else {
+				return CompletableFuture.completedFuture(baseMsg + " from something");
 			}
 		});
 	}
