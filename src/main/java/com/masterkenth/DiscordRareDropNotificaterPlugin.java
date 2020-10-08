@@ -143,7 +143,7 @@ public class DiscordRareDropNotificaterPlugin extends Plugin {
 		log.info("ProcessItemRarityNPC " + npcName + " " + itemId + " (" + itemManager.getItemComposition(itemId).getName() + ")");
 		return rarityChecker.CheckRarityNPC(npcId, itemId)
 		.thenCompose(rarity -> {
-			if(rarity >= 0) {
+			if(rarity <= (1f/config.minRarity())) {
 				CompletableFuture<Boolean> f = new CompletableFuture<>();
 				log.info("ProcessItemRarityNPC " + npcName + " " + itemId + " (" + itemManager.getItemComposition(itemId).getName() + ") 1/" + (1f/rarity));
 				queueScreenshot();
