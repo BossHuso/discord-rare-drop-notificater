@@ -14,4 +14,9 @@ public interface DiscordRareDropNotificaterConfig extends Config {
 	default int minRarity() {
 		return 64;
 	}
+
+	@ConfigItem(keyName = "minvalue", name = "Min NPC Value", description = "NPC drops more valuable (GE or HA) than this are posted to Discord")
+	default int minValue() {
+		return 50000;
+	}
 }
