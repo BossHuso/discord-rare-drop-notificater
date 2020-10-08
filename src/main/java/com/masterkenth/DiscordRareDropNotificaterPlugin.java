@@ -140,12 +140,15 @@ public class DiscordRareDropNotificaterPlugin extends Plugin {
 		int npcId = npc.getId();
 		int npcCombatLevel = npc.getCombatLevel();
 		String npcName = npc.getName();
-		log.info("ProcessItemRarityNPC " + npcName + " " + itemId + " (" + itemManager.getItemComposition(itemId).getName() + ")");
+		log.info(String.format("ProcessItemRarityNPC npc=(%d) %s lvl %d item=(%d) %s (%dx)", npcId, npcName, npcCombatLevel, itemId, itemManager.getItemComposition(itemId).getName(), quantity));
 		return rarityChecker.CheckRarityNPC(npcId, itemId)
 		.thenCompose(rarity -> {
-			if(rarity <= (1f/config.minRarity()) || itemManager.getItemComposition(itemId).getHaPrice() >= config.minValue() || itemManager.getItemPrice(itemId) >= config.minValue()) {
+			int totalGeValue = itemManager.getItemPrice(itemId) * quantity;
+			int totalHaValue = itemManager.getItemComposition(itemId).getHaPrice() * quantity;
+			if(rarity <= (1f/config.minRarity()) || totalGeValue >= config.minValue() || totalHaValue >= config.minValue()) {
 				CompletableFuture<Boolean> f = new CompletableFuture<>();
-				log.info("ProcessItemRarityNPC " + npcName + " " + itemId + " (" + itemManager.getItemComposition(itemId).getName() + ") 1/" + (1f/rarity));
+				log.info(String.format("ProcessItemRarityNPC npc=(%d) %s lvl %d item=(%d) %s (%dx) rarity=1/%d GE=%d HA=%d", 
+					npcId, npcName, npcCombatLevel, itemId, itemManager.getItemComposition(itemId).getName(), quantity, (int)(1f/rarity), totalGeValue, totalHaValue));
 				queueScreenshot();
 				QueueLootNotification(getPlayerName(), getPlayerIconUrl(), itemId, quantity, rarity, npcId, npcCombatLevel, npcName, null, config.webhookUrl())
 				.handle((_v, e) -> {
@@ -206,12 +209,12 @@ public class DiscordRareDropNotificaterPlugin extends Plugin {
 
 		Field haValueField = new Field();
 		haValueField.setName("HA Value");
-		haValueField.setValue(getItemValueString(itemManager.getItemComposition(itemId).getHaPrice()));
+		haValueField.setValue(getItemValueString(itemManager.getItemComposition(itemId).getHaPrice() * quantity));
 		haValueField.setInline(true);
 
 		Field geValueField = new Field();
 		geValueField.setName("GE Value");
-		geValueField.setValue(getItemValueString(itemManager.getItemPrice(itemId)));
+		geValueField.setValue(getItemValueString(itemManager.getItemPrice(itemId) * quantity));
 		geValueField.setInline(true);
 
 
@@ -226,7 +229,7 @@ public class DiscordRareDropNotificaterPlugin extends Plugin {
 			embed.setThumbnail(thumbnail);
 		});
 		
-		CompletableFuture<Void> descFuture = getNotificationDescription(itemId, npcId, npcCombatLevel, npcName, eventName)
+		CompletableFuture<Void> descFuture = getNotificationDescription(itemId, quantity, npcId, npcCombatLevel, npcName, eventName)
 		.handle((notifDesc, e) -> {
 			if(e != null) {
 				log.error("unable to get item desc for " + itemId + " (" + e.getMessage() + ")");
@@ -273,13 +276,13 @@ public class DiscordRareDropNotificaterPlugin extends Plugin {
 
 	// TODO: Add Pet notification
 
-	private CompletableFuture<String> getNotificationDescription(int itemId, int npcId, int npcCombatLevel, String npcName, String eventName) {
+	private CompletableFuture<String> getNotificationDescription(int itemId, int quantity, int npcId, int npcCombatLevel, String npcName, String eventName) {
 		ItemComposition itemComp = itemManager.getItemComposition(itemId);		
 
 		return ApiTool.getInstance().getItem(itemId)
 		.thenCompose(itemJson -> {
 			String itemUrl = itemJson.getString("wiki_url");
-			String baseMsg = "Just got [" + itemComp.getName() + "](" + itemUrl + ")";
+			String baseMsg = "Just got " + (quantity > 1 ? quantity + "x " : "") + "[" + itemComp.getName() + "](" + itemUrl + ")";
 
 			if(npcId >= 0) {
 				return ApiTool.getInstance().getNPC(npcId)
