@@ -69,6 +69,8 @@ public class DiscordRareDropNotificaterPlugin extends Plugin {
 		log.info("Stopped");
 	}
 
+	private CompletableFuture<java.awt.Image> queuedScreenshot = null;
+
 	@Provides
 	DiscordRareDropNotificaterConfig provideConfig(ConfigManager configManager) {
 		return configManager.getConfig(DiscordRareDropNotificaterConfig.class);
@@ -77,7 +79,7 @@ public class DiscordRareDropNotificaterPlugin extends Plugin {
 	@Subscribe
 	public void onGameStateChanged(GameStateChanged gameStateChanged)
 	{
-		if (gameStateChanged.getGameState() == GameState.LOGGED_IN)
+/* 		if (gameStateChanged.getGameState() == GameState.LOGGED_IN)
 		{
 			Collection<ItemStack> items = new java.util.ArrayList<ItemStack>();
 			items.add(new ItemStack(4720, 1, new LocalPoint(0, 0)));
@@ -85,7 +87,7 @@ public class DiscordRareDropNotificaterPlugin extends Plugin {
 			items.add(new ItemStack(4712, 1, new LocalPoint(0, 0)));
 			LootReceived lr = new LootReceived("Barrows", -1, LootRecordType.EVENT, items);
 			onLootReceived(lr);
-		}
+		} */
 	}
 
 	@Subscribe
@@ -100,7 +102,7 @@ public class DiscordRareDropNotificaterPlugin extends Plugin {
 		}
 
 		CompletableFuture.allOf(futures.toArray(new CompletableFuture[futures.size()]))
-		.thenAccept(_v -> sendScreenshotIfAnyTrue(futures));
+		.thenAccept(_v -> sendScreenshotIfSupposedTo());
 	}
 
 	@Subscribe
@@ -119,15 +121,15 @@ public class DiscordRareDropNotificaterPlugin extends Plugin {
 		}
 
 		CompletableFuture.allOf(futures.toArray(new CompletableFuture[futures.size()]))
-		.thenAccept(_v -> sendScreenshotIfAnyTrue(futures));
+		.thenAccept(_v -> sendScreenshotIfSupposedTo());
 	}
 
 	private CompletableFuture<Boolean> processItemRarityEvent(String eventName, int itemId, int quantity) {
 		log.info("ProcessItemRarityEvent " + eventName + " " + itemId + " (" + itemManager.getItemComposition(itemId).getName() + ")");
 		float rarity = rarityChecker.CheckRarityEvent(eventName, itemId);
 		if(rarity >= 0) {
-			log.info("oof " + rarity);
 			log.info("ProcessItemRarityEvent " + eventName + " " + itemId + " (" + itemManager.getItemComposition(itemId).getName() + ") 1/" + (1f/rarity));
+			queueScreenshot();
 			return QueueLootNotification(getPlayerName(), getPlayerIconUrl(), itemId, quantity, rarity, null, eventName, config.webhookUrl())
 			.thenApply(_v -> true);
 		}
@@ -140,6 +142,7 @@ public class DiscordRareDropNotificaterPlugin extends Plugin {
 		.thenCompose(rarity -> {
 			if(rarity >= 0) {
 				log.info("ProcessItemRarityNPC " + npc.getName() + " " + itemId + " (" + itemManager.getItemComposition(itemId).getName() + ") 1/" + (1f/rarity));
+				queueScreenshot();
 				return QueueLootNotification(getPlayerName(), getPlayerIconUrl(), itemId, quantity, rarity, npc, null, config.webhookUrl())
 				.thenApply(_v -> true);
 			} else {
@@ -148,22 +151,18 @@ public class DiscordRareDropNotificaterPlugin extends Plugin {
 		});
 	}
 
-	private void sendScreenshotIfAnyTrue(List<CompletableFuture<Boolean>> futures) {
-		boolean gotRare = false;
-		for (CompletableFuture<Boolean> future : futures) {
-			try {
-				if(future.get()) {
-					gotRare = true;
-					break;
-				}
-			} catch (Exception e) {
-				log.warn("got bad future", e);
-				continue;
-			}
+	private void queueScreenshot() {
+		if(queuedScreenshot == null) {
+			queuedScreenshot = getScreenshot();
 		}
+	}
 
-		if(gotRare) {
-			sendScreenshot(config.webhookUrl());
+	private void sendScreenshotIfSupposedTo() {
+		if(queuedScreenshot != null) {
+			queuedScreenshot.thenAccept(screenshot -> {
+				sendScreenshot(config.webhookUrl(), screenshot);
+				queuedScreenshot = null;
+			});
 		}
 	}
 
@@ -177,6 +176,7 @@ public class DiscordRareDropNotificaterPlugin extends Plugin {
 		String eventName,
 		String webhookUrl)
 	{
+		log.info("QueueLootNotification");
 
 		Author author = new Author();
 		author.setName(playerName);
@@ -207,14 +207,20 @@ public class DiscordRareDropNotificaterPlugin extends Plugin {
 		});
 		
 		CompletableFuture<Void> descFuture = getNotificationDescription(itemId, npc, eventName)
-		.thenAccept(notifDesc -> {
+		.handle((notifDesc, e) -> {
+			log.info("Desc " + notifDesc);
+			if(e != null) {
+				log.error("unable to get item desc for " + itemId, e);
+			}
 			embed.setDescription(notifDesc);
+			return null;
 		});
 	
 		return CompletableFuture.allOf(descFuture, iconFuture)
 		.thenCompose(_v -> {
 			Webhook webhookData = new Webhook();
 			webhookData.setEmbeds(new Embed[]{ embed });
+			log.info("QueueLootNotification sending");
 			return sendWebhookData(config.webhookUrl(), webhookData);
 		});
 	}
@@ -235,38 +241,37 @@ public class DiscordRareDropNotificaterPlugin extends Plugin {
 		.thenAccept(res -> { log.info("sendWebhookData sent"); });
 	}
 
-	private CompletableFuture<Void> sendScreenshot(String webhookUrl) {
-		return getScreenshot()
-		.thenCompose(screenshot -> {
-			try {
-				ByteArrayOutputStream baos = new ByteArrayOutputStream();
-				ImageIO.write((BufferedImage)screenshot, "png", baos);
-				byte[] imageBytes = baos.toByteArray();
-				return ApiTool.getInstance().postFormImage(webhookUrl, imageBytes, "image/png");			
-			} catch (Exception e) {
-				return CompletableFuture.failedFuture(e);
-			}
-		});
+	private CompletableFuture<Void> sendScreenshot(String webhookUrl, java.awt.Image screenshot) {
+		try {
+			ByteArrayOutputStream baos = new ByteArrayOutputStream();
+			ImageIO.write((BufferedImage)screenshot, "png", baos);
+			byte[] imageBytes = baos.toByteArray();
+			return ApiTool.getInstance().postFormImage(webhookUrl, imageBytes, "image/png");			
+		} catch (Exception e) {
+			return CompletableFuture.failedFuture(e);
+		}
 	}
 
 	// TODO: Add Pet notification
 
 	private CompletableFuture<String> getNotificationDescription(int itemId, NPC npc, String eventName) {
-		CompletableFuture<String> f = new CompletableFuture<>();
-
 		ItemComposition itemComp = itemManager.getItemComposition(itemId);		
 
-		ApiTool.getInstance().getItem(itemId)
-		.thenAccept(itemJson -> {
+		return ApiTool.getInstance().getItem(itemId)
+		.thenCompose(itemJson -> {
 			String itemUrl = itemJson.getString("wiki_url");
-			String baseMsg = "Just got [" + itemComp.getName() + "](" + itemUrl + ") from ";
+			String baseMsg = "Just got [" + itemComp.getName() + "](" + itemUrl + ")";
 
 			if(npc != null) {
-				ApiTool.getInstance().getNPC(npc.getId())
-				.thenAccept(npcJson -> {
+				return ApiTool.getInstance().getNPC(npc.getId())
+				.thenApply(npcJson -> {
 					String npcUrl = npcJson.getString("wiki_url");
-					String fullMsg = baseMsg + "[" + npc.getName() + "](" + npcUrl +")";
-					f.complete(fullMsg);
+					String fullMsg = baseMsg + " from lvl " + npc.getCombatLevel() + " [" + npc.getName() + "](" + npcUrl +")";
+					return fullMsg;
+				})
+				.exceptionally(e -> {
+					log.error("unable to fetch NPC info for " + npc.getId(), e);
+					return baseMsg + " from lvl " + npc.getCombatLevel() + " " + npc.getName();
 				});
 			} else {
 				String eventUrl = HttpUrl.parse("https://oldschool.runescape.wiki/")
@@ -275,12 +280,10 @@ public class DiscordRareDropNotificaterPlugin extends Plugin {
 				.addQueryParameter("search", eventName)
 				.build()
 				.toString();
-				String fullMsg = baseMsg + "[" + eventName + "](" + eventUrl + ")";
-				f.complete(fullMsg);
+				String fullMsg = baseMsg + " from [" + eventName + "](" + eventUrl + ")";
+				return CompletableFuture.completedFuture(fullMsg);
 			}
 		});
-
-		return f;
 	}
 
 	private String getItemValueString(int itemId) {
