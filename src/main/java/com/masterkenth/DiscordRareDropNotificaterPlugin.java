@@ -1,5 +1,6 @@
 package com.masterkenth;
 
+import com.google.common.collect.ImmutableList;
 import com.google.inject.Provides;
 import com.masterkenth.discord.Embed;
 import com.masterkenth.discord.Author;
@@ -23,6 +24,7 @@ import lombok.extern.slf4j.Slf4j;
 import net.runelite.api.Client;
 import net.runelite.api.ItemComposition;
 import net.runelite.api.NPC;
+import net.runelite.api.events.ChatMessage;
 import net.runelite.client.config.ConfigManager;
 import net.runelite.client.eventbus.Subscribe;
 import net.runelite.client.events.NpcLootReceived;
@@ -43,6 +45,11 @@ import okhttp3.HttpUrl;
 )
 public class DiscordRareDropNotificaterPlugin extends Plugin
 {
+	private static final String PET_MESSAGE_DUPLICATE = "You have a funny feeling like you would have been followed";
+	private static final ImmutableList<String> PET_MESSAGES = ImmutableList.of(
+			"You have a funny feeling like you're being followed", "You feel something weird sneaking into your backpack",
+			"You have a funny feeling like you would have been followed", PET_MESSAGE_DUPLICATE);
+
 	@Inject
 	private Client client;
 
@@ -114,6 +121,29 @@ public class DiscordRareDropNotificaterPlugin extends Plugin
 				.thenAccept(_v -> sendScreenshotIfSupposedTo());
 	}
 
+	@Subscribe
+	public void onChatMessage(ChatMessage event)
+	{
+		log.info("Chat: (" + event.getSender() + ", " + event.getName() + ") " + event.getMessage());
+		String chatMessage = event.getMessage();
+
+		if (PET_MESSAGES.stream().anyMatch(chatMessage::contains))
+		{
+			boolean isDuplicate = chatMessage.contains(PET_MESSAGE_DUPLICATE);
+			log.info(String.format("Possible pet: duplicate=%b (%s, %s) %s", isDuplicate, event.getSender(), event.getName(),
+					event.getMessage()));
+			getScreenshot().thenAccept(screenshot ->
+			{
+				// Waiting for screenshot before checking pet allows us to wait one frame, in
+				// case pet data is not available yet
+
+				// TODO: Figure out how to get pet info
+				queuePetNotification(getPlayerName(), getPlayerIconUrl(), null, -1, isDuplicate)
+						.thenCompose(_v -> sendScreenshot(config.webhookUrl(), screenshot));
+			});
+		}
+	}
+
 	private CompletableFuture<Boolean> processItemRarityEvent(String eventName, int itemId, int quantity)
 	{
 		log.info("ProcessItemRarityEvent " + eventName + " " + itemId + " ("
@@ -180,6 +210,7 @@ public class DiscordRareDropNotificaterPlugin extends Plugin
 
 	private void sendScreenshotIfSupposedTo()
 	{
+		log.info("queuedScreenshot = " + (queuedScreenshot != null));
 		if (queuedScreenshot != null)
 		{
 			queuedScreenshot.thenAccept(screenshot ->
@@ -205,17 +236,17 @@ public class DiscordRareDropNotificaterPlugin extends Plugin
 
 		Field rarityField = new Field();
 		rarityField.setName("Rarity");
-		rarityField.setValue(getItemRarityString(rarity));
+		rarityField.setValue(getRarityString(rarity));
 		rarityField.setInline(true);
 
 		Field haValueField = new Field();
 		haValueField.setName("HA Value");
-		haValueField.setValue(getItemValueString(itemManager.getItemComposition(itemId).getHaPrice() * quantity));
+		haValueField.setValue(getGPValueString(itemManager.getItemComposition(itemId).getHaPrice() * quantity));
 		haValueField.setInline(true);
 
 		Field geValueField = new Field();
 		geValueField.setName("GE Value");
-		geValueField.setValue(getItemValueString(itemManager.getItemPrice(itemId) * quantity));
+		geValueField.setValue(getGPValueString(itemManager.getItemPrice(itemId) * quantity));
 		geValueField.setInline(true);
 
 		Embed embed = new Embed();
@@ -223,14 +254,15 @@ public class DiscordRareDropNotificaterPlugin extends Plugin
 		embed.setFields(new Field[] { rarityField, haValueField, geValueField });
 
 		Image thumbnail = new Image();
-		CompletableFuture<Void> iconFuture = getItemIconUrl(itemId).thenAccept(iconUrl ->
-		{
-			thumbnail.setUrl(iconUrl);
-			embed.setThumbnail(thumbnail);
-		});
+		CompletableFuture<Void> iconFuture = ApiTool.getInstance()
+				.getIconUrl("item", itemId, itemManager.getItemComposition(itemId).getName()).thenAccept(iconUrl ->
+				{
+					thumbnail.setUrl(iconUrl);
+					embed.setThumbnail(thumbnail);
+				});
 
-		CompletableFuture<Void> descFuture = getNotificationDescription(itemId, quantity, npcId, npcCombatLevel, npcName,
-				eventName).handle((notifDesc, e) ->
+		CompletableFuture<Void> descFuture = getLootNotificationDescription(itemId, quantity, npcId, npcCombatLevel,
+				npcName, eventName).handle((notifDesc, e) ->
 				{
 					if (e != null)
 					{
@@ -245,6 +277,42 @@ public class DiscordRareDropNotificaterPlugin extends Plugin
 			Webhook webhookData = new Webhook();
 			webhookData.setEmbeds(new Embed[] { embed });
 			log.info("QueueLootNotification sending");
+			return sendWebhookData(config.webhookUrl(), webhookData);
+		});
+	}
+
+	private CompletableFuture<Void> queuePetNotification(String playerName, String playerIconUrl, String petName,
+			int rarity, boolean isDuplicate)
+	{
+		Author author = new Author();
+		author.setName(playerName);
+
+		if (playerIconUrl != null)
+		{
+			author.setIcon_url(playerIconUrl);
+		}
+
+		/*
+		 * Field rarityField = new Field(); rarityField.setName("Rarity");
+		 * rarityField.setValue(getRarityString(rarity)); rarityField.setInline(true);
+		 */
+
+		Embed embed = new Embed();
+		embed.setAuthor(author);
+		embed.setFields(new Field[] { /* rarityField */ });
+		embed.setDescription(getPetNotificationDescription(isDuplicate));
+
+		/*
+		 * Image thumbnail = new Image(); CompletableFuture<Void> iconFuture =
+		 * ApiTool.getInstance().getIconUrl("pet", -1, petName).thenAccept(iconUrl -> {
+		 * thumbnail.setUrl(iconUrl); embed.setThumbnail(thumbnail); });
+		 */
+
+		return CompletableFuture.allOf().thenCompose(_v ->
+		{
+			Webhook webhookData = new Webhook();
+			webhookData.setEmbeds(new Embed[] { embed });
+			log.info("queuePetNotification sending");
 			return sendWebhookData(config.webhookUrl(), webhookData);
 		});
 	}
@@ -287,8 +355,8 @@ public class DiscordRareDropNotificaterPlugin extends Plugin
 
 	// TODO: Add Pet notification
 
-	private CompletableFuture<String> getNotificationDescription(int itemId, int quantity, int npcId, int npcCombatLevel,
-			String npcName, String eventName)
+	private CompletableFuture<String> getLootNotificationDescription(int itemId, int quantity, int npcId,
+			int npcCombatLevel, String npcName, String eventName)
 	{
 		ItemComposition itemComp = itemManager.getItemComposition(itemId);
 
@@ -325,20 +393,26 @@ public class DiscordRareDropNotificaterPlugin extends Plugin
 		});
 	}
 
-	private String getItemValueString(int value)
+	private String getPetNotificationDescription(boolean isDuplicate)
+	{
+		if (isDuplicate)
+		{
+			return "Would've gotten a pet, but already has it.";
+		}
+		else
+		{
+			return "Just got a pet, probably.";
+		}
+	}
+
+	private String getGPValueString(int value)
 	{
 		return "```fix\n" + NumberFormat.getNumberInstance(Locale.US).format(value) + " GP\n```";
 	}
 
-	private String getItemRarityString(float rarity)
+	private String getRarityString(float rarity)
 	{
 		return "```glsl\n# 1/" + (1 / rarity) + " (" + (rarity * 100f) + "%)\n```";
-	}
-
-	private CompletableFuture<String> getItemIconUrl(int itemId)
-	{
-		ItemComposition itemComp = itemManager.getItemComposition(itemId);
-		return ApiTool.getInstance().getIconUrl(itemId, itemComp.getName());
 	}
 
 	private String getPlayerIconUrl()
