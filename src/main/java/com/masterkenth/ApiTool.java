@@ -7,6 +7,8 @@ import java.io.IOException;
 import java.util.concurrent.CompletableFuture;
 import java.util.function.Supplier;
 
+import com.gargoylesoftware.htmlunit.BrowserVersion;
+import com.gargoylesoftware.htmlunit.IncorrectnessListener;
 import com.gargoylesoftware.htmlunit.SilentCssErrorHandler;
 import com.gargoylesoftware.htmlunit.WebClient;
 import com.gargoylesoftware.htmlunit.html.DomNode;
@@ -41,9 +43,14 @@ public class ApiTool {
   }
 
   public WebClient getWebClient() {
-    WebClient htmlClient = new WebClient();
+    WebClient htmlClient = new WebClient(BrowserVersion.CHROME);
     htmlClient.setCssErrorHandler(new SilentCssErrorHandler());
     htmlClient.setJavaScriptErrorListener(new SilentJavaScriptErrorListener());
+    htmlClient.setIncorrectnessListener(new IncorrectnessListener(){
+      @Override
+      public void notify(String message, Object origin) {
+      }
+    });
     return htmlClient;
   }
 
@@ -133,6 +140,7 @@ public class ApiTool {
   }
 
   private CompletableFuture<ResponseBody> callRequest(Request request) {
+    System.out.println("ApiTool " + request.url().toString());
     CompletableFuture<ResponseBody> future = new CompletableFuture<>();
 
     httpClient.newCall(request).enqueue(new Callback() {
@@ -148,6 +156,7 @@ public class ApiTool {
             future.complete(responseBody);
           }
         }
+        response.close();
       }
     });
 
@@ -155,6 +164,7 @@ public class ApiTool {
   }
 
   private CompletableFuture<JSONObject> CallRequestJson(Request request) {
+    System.out.println("ApiTool " + request.url().toString());
     return callRequest(request)
     .thenCompose(responseBody -> {
       CompletableFuture<JSONObject> f = new CompletableFuture<>();
