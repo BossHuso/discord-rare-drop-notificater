@@ -26,133 +26,134 @@ import okhttp3.RequestBody;
 import okhttp3.MediaType;
 import okhttp3.MultipartBody;
 
-public class ApiTool {
+public class ApiTool
+{
   private static final String API_ROOT = "api.osrsbox.com";
   private static final String API_PATH_NPCS = "monsters";
   private static final String API_PATH_ITEMS = "items";
   private static final String WIKI_ROOT = "oldschool.runescape.wiki";
   private static ApiTool _instance;
-  
+
   private OkHttpClient httpClient = new OkHttpClient();
 
-  public static ApiTool getInstance() {
-    if(_instance == null) {
+  public static ApiTool getInstance()
+  {
+    if (_instance == null)
+    {
       _instance = new ApiTool();
     }
     return _instance;
   }
 
-  public WebClient getWebClient() {
+  public WebClient getWebClient()
+  {
     WebClient htmlClient = new WebClient(BrowserVersion.CHROME);
     htmlClient.setCssErrorHandler(new SilentCssErrorHandler());
     htmlClient.setJavaScriptErrorListener(new SilentJavaScriptErrorListener());
-    htmlClient.setIncorrectnessListener(new IncorrectnessListener(){
+    htmlClient.setIncorrectnessListener(new IncorrectnessListener()
+    {
       @Override
-      public void notify(String message, Object origin) {
+      public void notify(String message, Object origin)
+      {
       }
     });
     return htmlClient;
   }
 
-  public CompletableFuture<JSONObject> getNPC(int npcId) {
-    HttpUrl url = new HttpUrl.Builder()
-      .scheme("https")
-      .host(API_ROOT)
-      .addPathSegment(API_PATH_NPCS)
-      .addPathSegment("" + npcId)
-      .build();
+  public CompletableFuture<JSONObject> getNPC(int npcId)
+  {
+    HttpUrl url = new HttpUrl.Builder().scheme("https").host(API_ROOT).addPathSegment(API_PATH_NPCS)
+        .addPathSegment("" + npcId).build();
 
-    Request request = new Request.Builder()
-      .url(url)
-      .build();
+    Request request = new Request.Builder().url(url).build();
 
     return CallRequestJson(request);
   }
 
-  public CompletableFuture<JSONObject> getItem(int itemId) {
-    HttpUrl url = new HttpUrl.Builder()
-      .scheme("https")
-      .host(API_ROOT)
-      .addPathSegment(API_PATH_ITEMS)
-      .addPathSegment("" + itemId)
-      .build();
+  public CompletableFuture<JSONObject> getItem(int itemId)
+  {
+    HttpUrl url = new HttpUrl.Builder().scheme("https").host(API_ROOT).addPathSegment(API_PATH_ITEMS)
+        .addPathSegment("" + itemId).build();
 
-    Request request = new Request.Builder()
-      .url(url)
-      .build();
+    Request request = new Request.Builder().url(url).build();
 
     return CallRequestJson(request);
   }
 
-  public CompletableFuture<String> getIconUrl(int itemId, String itemName) {
-    return CompletableFuture.supplyAsync(new Supplier<String>() {
+  public CompletableFuture<String> getIconUrl(int itemId, String itemName)
+  {
+    return CompletableFuture.supplyAsync(new Supplier<String>()
+    {
       @Override
-      public String get() {
-        HttpUrl baseUrl = new HttpUrl.Builder()
-        .host(WIKI_ROOT)
-        .scheme("https")
-        .build();
-  
-        HttpUrl url = new HttpUrl.Builder()
-          .host(WIKI_ROOT)
-          .scheme("https")
-          .addPathSegments("w/Special:Lookup")
-          .addQueryParameter("type", "item")
-          .addQueryParameter("id", "" + itemId)
-          .addQueryParameter("name", itemName)
-          .build();
+      public String get()
+      {
+        HttpUrl baseUrl = new HttpUrl.Builder().host(WIKI_ROOT).scheme("https").build();
 
-        try {
+        HttpUrl url = new HttpUrl.Builder().host(WIKI_ROOT).scheme("https").addPathSegments("w/Special:Lookup")
+            .addQueryParameter("type", "item").addQueryParameter("id", "" + itemId).addQueryParameter("name", itemName)
+            .build();
+
+        try
+        {
           HtmlPage page = getWebClient().getPage(url.toString());
           DomNode imgNode = page.querySelector("td.inventory-image a.image img");
           String localIconPath = imgNode.getAttributes().getNamedItem("src").getNodeValue().substring(1);
           String absoluteIconPath = baseUrl.toString() + localIconPath;
-          return absoluteIconPath;    
-        } catch (Exception e) {
-          System.err.println("Unable to get icon url for " + itemId + " " + itemName + ": " + e.getMessage() + "(" + url.toString() + ")");
+          return absoluteIconPath;
+        }
+        catch (Exception e)
+        {
+          System.err.println("Unable to get icon url for " + itemId + " " + itemName + ": " + e.getMessage() + "("
+              + url.toString() + ")");
           return null;
         }
       }
     });
   }
 
-  public CompletableFuture<ResponseBody> postRaw(String url, String data, String type) {
-    Request request = new Request.Builder()
-      .url(url)
-      .post(RequestBody.create(data, MediaType.parse(type)))
-      .build();
-    
+  public CompletableFuture<ResponseBody> postRaw(String url, String data, String type)
+  {
+    Request request = new Request.Builder().url(url).post(RequestBody.create(data, MediaType.parse(type))).build();
+
     return callRequest(request);
   }
 
-  public CompletableFuture<Void> postFormImage(String url, byte[] imageBytes, String type) {
-    MultipartBody.Builder requestBuilder = new MultipartBody.Builder()
-    .setType(MultipartBody.FORM)
-    .addFormDataPart("file", "image.png", RequestBody.create(imageBytes, MediaType.parse(type)));
+  public CompletableFuture<Void> postFormImage(String url, byte[] imageBytes, String type)
+  {
+    MultipartBody.Builder requestBuilder = new MultipartBody.Builder().setType(MultipartBody.FORM)
+        .addFormDataPart("file", "image.png", RequestBody.create(imageBytes, MediaType.parse(type)));
 
-    Request request = new Request.Builder()
-    .url(url)
-    .post(requestBuilder.build())
-    .build();
+    Request request = new Request.Builder().url(url).post(requestBuilder.build()).build();
 
-    return callRequest(request)
-    .thenAccept(rb -> {});
+    return callRequest(request).thenAccept(rb ->
+    {
+    });
   }
 
-  private CompletableFuture<ResponseBody> callRequest(Request request) {
+  private CompletableFuture<ResponseBody> callRequest(Request request)
+  {
     System.out.println("ApiTool " + request.url().toString());
     CompletableFuture<ResponseBody> future = new CompletableFuture<>();
 
-    httpClient.newCall(request).enqueue(new Callback() {
-      @Override public void onFailure(Call call, IOException e) {
+    httpClient.newCall(request).enqueue(new Callback()
+    {
+      @Override
+      public void onFailure(Call call, IOException e)
+      {
         future.completeExceptionally(e);
       }
 
-      @Override public void onResponse(Call call, Response response) throws IOException {
-        try (ResponseBody responseBody = response.body()) {
-          if (!response.isSuccessful()) {
+      @Override
+      public void onResponse(Call call, Response response) throws IOException
+      {
+        try (ResponseBody responseBody = response.body())
+        {
+          if (!response.isSuccessful())
+          {
             future.completeExceptionally(new IOException("Unexpected code " + response));
-          } else {
+          }
+          else
+          {
             future.complete(responseBody);
           }
         }
@@ -163,14 +164,18 @@ public class ApiTool {
     return future;
   }
 
-  private CompletableFuture<JSONObject> CallRequestJson(Request request) {
+  private CompletableFuture<JSONObject> CallRequestJson(Request request)
+  {
     System.out.println("ApiTool " + request.url().toString());
-    return callRequest(request)
-    .thenCompose(responseBody -> {
+    return callRequest(request).thenCompose(responseBody ->
+    {
       CompletableFuture<JSONObject> f = new CompletableFuture<>();
-      try {
+      try
+      {
         f.complete(new JSONObject(responseBody.string()));
-      } catch (Exception e) {
+      }
+      catch (Exception e)
+      {
         f.completeExceptionally(e);
       }
       return f;

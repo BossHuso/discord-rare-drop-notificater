@@ -6,7 +6,9 @@ import net.runelite.api.ItemID;
 
 // All tables have been manually scraped from osrs wiki
 // Tables only contain (subjectively) rare drops so that if a drop matches against a table it is always posted to Discord
-public final class RarityTables {
+public final class RarityTables
+{
+  // @formatter:off
   private static final Map<Integer, Float> TABLE_BARROWS = Map.ofEntries(
     entry(ItemID.AHRIMS_HOOD,           7.0f / 102.0f),
     entry(ItemID.AHRIMS_ROBETOP,        7.0f / 102.0f),
@@ -948,6 +950,7 @@ public final class RarityTables {
     entry("elven crystal chest"    , TABLE_ELVEN_CRYSTAL_CHEST  ),
     entry("crystal chest"          , TABLE_CRYSTAL_CHEST        )
   );
-
   // TODO: Pets
+
+  // @formatter:on
 }

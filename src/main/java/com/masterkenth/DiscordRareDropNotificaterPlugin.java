@@ -21,11 +21,8 @@ import javax.imageio.ImageIO;
 import javax.inject.Inject;
 import lombok.extern.slf4j.Slf4j;
 import net.runelite.api.Client;
-import net.runelite.api.GameState;
 import net.runelite.api.ItemComposition;
 import net.runelite.api.NPC;
-import net.runelite.api.coords.LocalPoint;
-import net.runelite.api.events.GameStateChanged;
 import net.runelite.client.config.ConfigManager;
 import net.runelite.client.eventbus.Subscribe;
 import net.runelite.client.events.NpcLootReceived;
@@ -40,17 +37,18 @@ import okhttp3.HttpUrl;
 
 @Slf4j
 @PluginDescriptor(
-	name = "Discord Rare Drop Notificater", 
-	description = "Sends a detailed notification via Discord webhooks whenever you get a rare/unique drop.",
-	tags = { "discord", "loot", "unique", "boss", "notification" }
+		name = "Discord Rare Drop Notificater",
+		description = "Sends a detailed notification via Discord webhooks whenever you get a rare/unique drop.",
+		tags = { "discord", "loot", "unique", "boss", "notification" }
 )
-public class DiscordRareDropNotificaterPlugin extends Plugin {
+public class DiscordRareDropNotificaterPlugin extends Plugin
+{
 	@Inject
 	private Client client;
 
 	@Inject
 	private DiscordRareDropNotificaterConfig config;
-	
+
 	@Inject
 	private ItemManager itemManager;
 
@@ -60,34 +58,23 @@ public class DiscordRareDropNotificaterPlugin extends Plugin {
 	private final RarityChecker rarityChecker = new RarityChecker();
 
 	@Override
-	protected void startUp() throws Exception {
+	protected void startUp() throws Exception
+	{
 		log.info("Started");
 	}
 
 	@Override
-	protected void shutDown() throws Exception {
+	protected void shutDown() throws Exception
+	{
 		log.info("Stopped");
 	}
 
 	private CompletableFuture<java.awt.Image> queuedScreenshot = null;
 
 	@Provides
-	DiscordRareDropNotificaterConfig provideConfig(ConfigManager configManager) {
-		return configManager.getConfig(DiscordRareDropNotificaterConfig.class);
-	}
-
-	@Subscribe
-	public void onGameStateChanged(GameStateChanged gameStateChanged)
+	DiscordRareDropNotificaterConfig provideConfig(ConfigManager configManager)
 	{
-/* 		if (gameStateChanged.getGameState() == GameState.LOGGED_IN)
-		{
-			Collection<ItemStack> items = new java.util.ArrayList<ItemStack>();
-			items.add(new ItemStack(4720, 1, new LocalPoint(0, 0)));
-			items.add(new ItemStack(4740, 100, new LocalPoint(0, 0)));
-			items.add(new ItemStack(4712, 1, new LocalPoint(0, 0)));
-			LootReceived lr = new LootReceived("Barrows", -1, LootRecordType.EVENT, items);
-			onLootReceived(lr);
-		} */
+		return configManager.getConfig(DiscordRareDropNotificaterConfig.class);
 	}
 
 	@Subscribe
@@ -97,12 +84,13 @@ public class DiscordRareDropNotificaterPlugin extends Plugin {
 		Collection<ItemStack> items = npcLootReceived.getItems();
 
 		List<CompletableFuture<Boolean>> futures = new ArrayList<CompletableFuture<Boolean>>();
-		for(ItemStack item : items) {
+		for (ItemStack item : items)
+		{
 			futures.add(processItemRarityNPC(npc, item.getId(), item.getQuantity()));
 		}
 
 		CompletableFuture.allOf(futures.toArray(new CompletableFuture[futures.size()]))
-		.thenAccept(_v -> sendScreenshotIfSupposedTo());
+				.thenAccept(_v -> sendScreenshotIfSupposedTo());
 	}
 
 	@Subscribe
@@ -110,95 +98,108 @@ public class DiscordRareDropNotificaterPlugin extends Plugin {
 	{
 		// Only process EVENTS such as Barrows, CoX etc.
 		// For NPCs onNpcLootReceived receives more information and is used instead.
-		if(lootReceived.getType() != LootRecordType.EVENT) {
+		if (lootReceived.getType() != LootRecordType.EVENT)
+		{
 			return;
 		}
 
 		Collection<ItemStack> items = lootReceived.getItems();
 		List<CompletableFuture<Boolean>> futures = new ArrayList<CompletableFuture<Boolean>>();
-		for(ItemStack item : items) {
+		for (ItemStack item : items)
+		{
 			futures.add(processItemRarityEvent(lootReceived.getName(), item.getId(), item.getQuantity()));
 		}
 
 		CompletableFuture.allOf(futures.toArray(new CompletableFuture[futures.size()]))
-		.thenAccept(_v -> sendScreenshotIfSupposedTo());
+				.thenAccept(_v -> sendScreenshotIfSupposedTo());
 	}
 
-	private CompletableFuture<Boolean> processItemRarityEvent(String eventName, int itemId, int quantity) {
-		log.info("ProcessItemRarityEvent " + eventName + " " + itemId + " (" + itemManager.getItemComposition(itemId).getName() + ")");
+	private CompletableFuture<Boolean> processItemRarityEvent(String eventName, int itemId, int quantity)
+	{
+		log.info("ProcessItemRarityEvent " + eventName + " " + itemId + " ("
+				+ itemManager.getItemComposition(itemId).getName() + ")");
 		float rarity = rarityChecker.CheckRarityEvent(eventName, itemId);
-		if(rarity >= 0) {
-			log.info("ProcessItemRarityEvent " + eventName + " " + itemId + " (" + itemManager.getItemComposition(itemId).getName() + ") 1/" + (1f/rarity));
+		if (rarity >= 0)
+		{
+			log.info("ProcessItemRarityEvent " + eventName + " " + itemId + " ("
+					+ itemManager.getItemComposition(itemId).getName() + ") 1/" + (1f / rarity));
 			queueScreenshot();
-			return QueueLootNotification(getPlayerName(), getPlayerIconUrl(), itemId, quantity, rarity, -1, -1, null, eventName, config.webhookUrl())
-			.thenApply(_v -> true);
+			return QueueLootNotification(getPlayerName(), getPlayerIconUrl(), itemId, quantity, rarity, -1, -1, null,
+					eventName, config.webhookUrl()).thenApply(_v -> true);
 		}
 		return CompletableFuture.completedFuture(false);
 	}
 
-	private CompletableFuture<Boolean> processItemRarityNPC(NPC npc, int itemId, int quantity) {
+	private CompletableFuture<Boolean> processItemRarityNPC(NPC npc, int itemId, int quantity)
+	{
 		int npcId = npc.getId();
 		int npcCombatLevel = npc.getCombatLevel();
 		String npcName = npc.getName();
-		log.info(String.format("ProcessItemRarityNPC npc=(%d) %s lvl %d item=(%d) %s (%dx)", npcId, npcName, npcCombatLevel, itemId, itemManager.getItemComposition(itemId).getName(), quantity));
-		return rarityChecker.CheckRarityNPC(npcId, itemId)
-		.thenCompose(rarity -> {
+		log.info(String.format("ProcessItemRarityNPC npc=(%d) %s lvl %d item=(%d) %s (%dx)", npcId, npcName, npcCombatLevel,
+				itemId, itemManager.getItemComposition(itemId).getName(), quantity));
+		return rarityChecker.CheckRarityNPC(npcId, itemId).thenCompose(rarity ->
+		{
 			int totalGeValue = itemManager.getItemPrice(itemId) * quantity;
 			int totalHaValue = itemManager.getItemComposition(itemId).getHaPrice() * quantity;
-			if(rarity <= (1f/config.minRarity()) || totalGeValue >= config.minValue() || totalHaValue >= config.minValue()) {
+			if (rarity <= (1f / config.minRarity()) || totalGeValue >= config.minValue() || totalHaValue >= config.minValue())
+			{
 				CompletableFuture<Boolean> f = new CompletableFuture<>();
-				log.info(String.format("ProcessItemRarityNPC npc=(%d) %s lvl %d item=(%d) %s (%dx) rarity=1/%d GE=%d HA=%d", 
-					npcId, npcName, npcCombatLevel, itemId, itemManager.getItemComposition(itemId).getName(), quantity, (int)(1f/rarity), totalGeValue, totalHaValue));
+				log.info(String.format("ProcessItemRarityNPC npc=(%d) %s lvl %d item=(%d) %s (%dx) rarity=1/%d GE=%d HA=%d",
+						npcId, npcName, npcCombatLevel, itemId, itemManager.getItemComposition(itemId).getName(), quantity,
+						(int) (1f / rarity), totalGeValue, totalHaValue));
 				queueScreenshot();
-				QueueLootNotification(getPlayerName(), getPlayerIconUrl(), itemId, quantity, rarity, npcId, npcCombatLevel, npcName, null, config.webhookUrl())
-				.handle((_v, e) -> {
-					if(e != null) {
-						f.completeExceptionally(e);
-					} else {
-						f.complete(true);
-					}
-					return null;
-				});
+				QueueLootNotification(getPlayerName(), getPlayerIconUrl(), itemId, quantity, rarity, npcId, npcCombatLevel,
+						npcName, null, config.webhookUrl()).handle((_v, e) ->
+						{
+							if (e != null)
+							{
+								f.completeExceptionally(e);
+							}
+							else
+							{
+								f.complete(true);
+							}
+							return null;
+						});
 				return f;
-			} else {
+			}
+			else
+			{
 				return CompletableFuture.completedFuture(false);
 			}
 		});
 	}
 
-	private void queueScreenshot() {
-		if(queuedScreenshot == null) {
+	private void queueScreenshot()
+	{
+		if (queuedScreenshot == null)
+		{
 			queuedScreenshot = getScreenshot();
 		}
 	}
 
-	private void sendScreenshotIfSupposedTo() {
-		if(queuedScreenshot != null) {
-			queuedScreenshot.thenAccept(screenshot -> {
+	private void sendScreenshotIfSupposedTo()
+	{
+		if (queuedScreenshot != null)
+		{
+			queuedScreenshot.thenAccept(screenshot ->
+			{
 				sendScreenshot(config.webhookUrl(), screenshot);
 				queuedScreenshot = null;
 			});
 		}
 	}
 
-	private CompletableFuture<Void> QueueLootNotification(
-		String playerName, 
-		String playerIconUrl,
-		int itemId, 
-		int quantity, 
-		float rarity, 
-		int npcId, 
-		int npcCombatLevel, 
-		String npcName,
-		String eventName,
-		String webhookUrl)
+	private CompletableFuture<Void> QueueLootNotification(String playerName, String playerIconUrl, int itemId,
+			int quantity, float rarity, int npcId, int npcCombatLevel, String npcName, String eventName, String webhookUrl)
 	{
 		log.info("QueueLootNotification");
 
 		Author author = new Author();
 		author.setName(playerName);
 
-		if(playerIconUrl != null) {
+		if (playerIconUrl != null)
+		{
 			author.setIcon_url(playerIconUrl);
 		}
 
@@ -217,122 +218,146 @@ public class DiscordRareDropNotificaterPlugin extends Plugin {
 		geValueField.setValue(getItemValueString(itemManager.getItemPrice(itemId) * quantity));
 		geValueField.setInline(true);
 
-
 		Embed embed = new Embed();
 		embed.setAuthor(author);
-		embed.setFields(new Field[]{ rarityField, haValueField, geValueField });
+		embed.setFields(new Field[] { rarityField, haValueField, geValueField });
 
 		Image thumbnail = new Image();
-		CompletableFuture<Void> iconFuture = getItemIconUrl(itemId)
-		.thenAccept(iconUrl -> {
+		CompletableFuture<Void> iconFuture = getItemIconUrl(itemId).thenAccept(iconUrl ->
+		{
 			thumbnail.setUrl(iconUrl);
 			embed.setThumbnail(thumbnail);
 		});
-		
-		CompletableFuture<Void> descFuture = getNotificationDescription(itemId, quantity, npcId, npcCombatLevel, npcName, eventName)
-		.handle((notifDesc, e) -> {
-			if(e != null) {
-				log.error("unable to get item desc for " + itemId + " (" + e.getMessage() + ")");
-			}
-			embed.setDescription(notifDesc);
-			return null;
-		});
-	
-		return CompletableFuture.allOf(descFuture, iconFuture)
-		.thenCompose(_v -> {
+
+		CompletableFuture<Void> descFuture = getNotificationDescription(itemId, quantity, npcId, npcCombatLevel, npcName,
+				eventName).handle((notifDesc, e) ->
+				{
+					if (e != null)
+					{
+						log.error("unable to get item desc for " + itemId + " (" + e.getMessage() + ")");
+					}
+					embed.setDescription(notifDesc);
+					return null;
+				});
+
+		return CompletableFuture.allOf(descFuture, iconFuture).thenCompose(_v ->
+		{
 			Webhook webhookData = new Webhook();
-			webhookData.setEmbeds(new Embed[]{ embed });
+			webhookData.setEmbeds(new Embed[] { embed });
 			log.info("QueueLootNotification sending");
 			return sendWebhookData(config.webhookUrl(), webhookData);
 		});
 	}
 
-	private CompletableFuture<java.awt.Image> getScreenshot() {
+	private CompletableFuture<java.awt.Image> getScreenshot()
+	{
 		CompletableFuture<java.awt.Image> f = new CompletableFuture<>();
-		drawManager.requestNextFrameListener(screenshotImage -> {
+		drawManager.requestNextFrameListener(screenshotImage ->
+		{
 			f.complete(screenshotImage);
 		});
 		return f;
 	}
 
-	private CompletableFuture<Void> sendWebhookData(String webhookUrl, Webhook webhookData) {
+	private CompletableFuture<Void> sendWebhookData(String webhookUrl, Webhook webhookData)
+	{
 		JSONObject json = new JSONObject(webhookData);
 		String jsonStr = json.toString();
 		log.info("sendWebhookData");
-		return ApiTool.getInstance().postRaw(webhookUrl, jsonStr, "application/json")
-		.thenAccept(res -> { log.info("sendWebhookData sent"); });
+		return ApiTool.getInstance().postRaw(webhookUrl, jsonStr, "application/json").thenAccept(res ->
+		{
+			log.info("sendWebhookData sent");
+		});
 	}
 
-	private CompletableFuture<Void> sendScreenshot(String webhookUrl, java.awt.Image screenshot) {
-		try {
+	private CompletableFuture<Void> sendScreenshot(String webhookUrl, java.awt.Image screenshot)
+	{
+		try
+		{
 			ByteArrayOutputStream baos = new ByteArrayOutputStream();
-			ImageIO.write((BufferedImage)screenshot, "png", baos);
+			ImageIO.write((BufferedImage) screenshot, "png", baos);
 			byte[] imageBytes = baos.toByteArray();
-			return ApiTool.getInstance().postFormImage(webhookUrl, imageBytes, "image/png");			
-		} catch (Exception e) {
+			return ApiTool.getInstance().postFormImage(webhookUrl, imageBytes, "image/png");
+		}
+		catch (Exception e)
+		{
 			return CompletableFuture.failedFuture(e);
 		}
 	}
 
 	// TODO: Add Pet notification
 
-	private CompletableFuture<String> getNotificationDescription(int itemId, int quantity, int npcId, int npcCombatLevel, String npcName, String eventName) {
-		ItemComposition itemComp = itemManager.getItemComposition(itemId);		
+	private CompletableFuture<String> getNotificationDescription(int itemId, int quantity, int npcId, int npcCombatLevel,
+			String npcName, String eventName)
+	{
+		ItemComposition itemComp = itemManager.getItemComposition(itemId);
 
-		return ApiTool.getInstance().getItem(itemId)
-		.thenCompose(itemJson -> {
+		return ApiTool.getInstance().getItem(itemId).thenCompose(itemJson ->
+		{
 			String itemUrl = itemJson.getString("wiki_url");
-			String baseMsg = "Just got " + (quantity > 1 ? quantity + "x " : "") + "[" + itemComp.getName() + "](" + itemUrl + ")";
+			String baseMsg = "Just got " + (quantity > 1 ? quantity + "x " : "") + "[" + itemComp.getName() + "](" + itemUrl
+					+ ")";
 
-			if(npcId >= 0) {
-				return ApiTool.getInstance().getNPC(npcId)
-				.thenApply(npcJson -> {
+			if (npcId >= 0)
+			{
+				return ApiTool.getInstance().getNPC(npcId).thenApply(npcJson ->
+				{
 					String npcUrl = npcJson.getString("wiki_url");
-					String fullMsg = baseMsg + " from lvl " + npcCombatLevel + " [" + npcName + "](" + npcUrl +")";
+					String fullMsg = baseMsg + " from lvl " + npcCombatLevel + " [" + npcName + "](" + npcUrl + ")";
 					return fullMsg;
-				})
-				.exceptionally(e -> {
+				}).exceptionally(e ->
+				{
 					log.error("!= NPC info for " + npcId + " (" + e.getMessage() + ")");
 					return baseMsg + " from lvl " + npcCombatLevel + " " + npcName;
 				});
-			} else if(eventName != null) {
-				String eventUrl = HttpUrl.parse("https://oldschool.runescape.wiki/")
-				.newBuilder()
-				.addPathSegments("w/Special:Search")
-				.addQueryParameter("search", eventName)
-				.build()
-				.toString();
+			}
+			else if (eventName != null)
+			{
+				String eventUrl = HttpUrl.parse("https://oldschool.runescape.wiki/").newBuilder()
+						.addPathSegments("w/Special:Search").addQueryParameter("search", eventName).build().toString();
 				String fullMsg = baseMsg + " from [" + eventName + "](" + eventUrl + ")";
 				return CompletableFuture.completedFuture(fullMsg);
-			} else {
+			}
+			else
+			{
 				return CompletableFuture.completedFuture(baseMsg + " from something");
 			}
 		});
 	}
 
-	private String getItemValueString(int value) {
+	private String getItemValueString(int value)
+	{
 		return "```fix\n" + NumberFormat.getNumberInstance(Locale.US).format(value) + " GP\n```";
 	}
 
-	private String getItemRarityString(float rarity) {
-		return "```glsl\n# 1/" + (1/rarity) + " (" + (rarity*100f) + "%)\n```";
+	private String getItemRarityString(float rarity)
+	{
+		return "```glsl\n# 1/" + (1 / rarity) + " (" + (rarity * 100f) + "%)\n```";
 	}
 
-	private CompletableFuture<String> getItemIconUrl(int itemId) {
+	private CompletableFuture<String> getItemIconUrl(int itemId)
+	{
 		ItemComposition itemComp = itemManager.getItemComposition(itemId);
 		return ApiTool.getInstance().getIconUrl(itemId, itemComp.getName());
 	}
 
-	private String getPlayerIconUrl() {
-		switch(client.getAccountType()) {
-			case IRONMAN: return "https://oldschool.runescape.wiki/images/0/09/Ironman_chat_badge.png";
-			case HARDCORE_IRONMAN: return "https://oldschool.runescape.wiki/images/b/b8/Hardcore_ironman_chat_badge.png";
-			case ULTIMATE_IRONMAN: return "https://oldschool.runescape.wiki/images/0/02/Ultimate_ironman_chat_badge.png";
-			default: return null;
+	private String getPlayerIconUrl()
+	{
+		switch (client.getAccountType())
+		{
+		case IRONMAN:
+			return "https://oldschool.runescape.wiki/images/0/09/Ironman_chat_badge.png";
+		case HARDCORE_IRONMAN:
+			return "https://oldschool.runescape.wiki/images/b/b8/Hardcore_ironman_chat_badge.png";
+		case ULTIMATE_IRONMAN:
+			return "https://oldschool.runescape.wiki/images/0/02/Ultimate_ironman_chat_badge.png";
+		default:
+			return null;
 		}
 	}
 
-	private String getPlayerName() {
+	private String getPlayerName()
+	{
 		return client.getLocalPlayer().getName();
 	}
 }
