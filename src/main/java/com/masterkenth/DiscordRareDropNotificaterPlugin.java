@@ -143,7 +143,7 @@ public class DiscordRareDropNotificaterPlugin extends Plugin {
 		log.info("ProcessItemRarityNPC " + npcName + " " + itemId + " (" + itemManager.getItemComposition(itemId).getName() + ")");
 		return rarityChecker.CheckRarityNPC(npcId, itemId)
 		.thenCompose(rarity -> {
-			if(rarity <= (1f/config.minRarity())) {
+			if(rarity <= (1f/config.minRarity()) || itemManager.getItemComposition(itemId).getHaPrice() >= config.minValue() || itemManager.getItemPrice(itemId) >= config.minValue()) {
 				CompletableFuture<Boolean> f = new CompletableFuture<>();
 				log.info("ProcessItemRarityNPC " + npcName + " " + itemId + " (" + itemManager.getItemComposition(itemId).getName() + ") 1/" + (1f/rarity));
 				queueScreenshot();
@@ -204,14 +204,20 @@ public class DiscordRareDropNotificaterPlugin extends Plugin {
 		rarityField.setValue(getItemRarityString(rarity));
 		rarityField.setInline(true);
 
-		Field valueField = new Field();
-		valueField.setName("Value");
-		valueField.setValue(getItemValueString(itemId));
-		valueField.setInline(true);
+		Field haValueField = new Field();
+		haValueField.setName("HA Value");
+		haValueField.setValue(getItemValueString(itemManager.getItemComposition(itemId).getHaPrice()));
+		haValueField.setInline(true);
+
+		Field geValueField = new Field();
+		geValueField.setName("GE Value");
+		geValueField.setValue(getItemValueString(itemManager.getItemPrice(itemId)));
+		geValueField.setInline(true);
+
 
 		Embed embed = new Embed();
 		embed.setAuthor(author);
-		embed.setFields(new Field[]{ rarityField, valueField });
+		embed.setFields(new Field[]{ rarityField, haValueField, geValueField });
 
 		Image thumbnail = new Image();
 		CompletableFuture<Void> iconFuture = getItemIconUrl(itemId)
@@ -301,9 +307,8 @@ public class DiscordRareDropNotificaterPlugin extends Plugin {
 		});
 	}
 
-	private String getItemValueString(int itemId) {
-		ItemComposition itemComp = itemManager.getItemComposition(itemId);
-		return "```fix\n" + NumberFormat.getNumberInstance(Locale.US).format(itemComp.getPrice()) + " GP\n```";
+	private String getItemValueString(int value) {
+		return "```fix\n" + NumberFormat.getNumberInstance(Locale.US).format(value) + " GP\n```";
 	}
 
 	private String getItemRarityString(float rarity) {
