@@ -10,4 +10,8 @@ public interface DiscordRareDropNotificaterConfig extends Config {
 	default String webhookUrl() {
 		return "";
 	}
+	@ConfigItem(keyName = "minrarity", name = "Min NPC Rarity (1/x)", description = "NPC drops more rare than this are posted to Discord")
+	default int minRarity() {
+		return 64;
+	}
 }
