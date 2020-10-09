@@ -933,6 +933,52 @@ public final class RarityTables
     entry(ItemID.RUNE_PLATELEGS   , 1f / 128f),
     entry(ItemID.RUNE_PLATESKIRT  , 1f / 128f)
   );
+  
+  private static final Map<Integer, Float> TABLE_PETS = Map.ofEntries(
+    // NOTE: Skilling pet rarity is all over the place based on level, method etc. so they're excluded (but roughly in the 1 / 100000's and up)
+    entry(ItemID.ABYSSAL_ORPHAN       , 1f / 2560f),
+    entry(ItemID.BABY_MOLE            , 1f / 3000f),
+    entry(ItemID.CALLISTO_CUB         , 1f / 2000f),
+    entry(ItemID.HELLPUPPY            , 1f / 3000f),
+    entry(ItemID.IKKLE_HYDRA          , 1f / 3000f),
+    entry(ItemID.JALNIBREK            , 1f / 100f),
+    entry(ItemID.TZREKZUK             , 1f / 100f),
+    entry(ItemID.KALPHITE_PRINCESS    , 1f / 3000f),
+    entry(ItemID.LIL_ZIK              , 1f / 650f),
+    entry(ItemID.LITTLE_NIGHTMARE     , 1f / 4000f),
+    entry(ItemID.NOON                 , 1f / 3000f),
+    entry(ItemID.MIDNIGHT             , 1f / 3000f),
+    entry(ItemID.OLMLET               , 1f / 53f),
+    entry(ItemID.PET_CHAOS_ELEMENTAL  , 1f / 300f),
+    entry(ItemID.PET_DAGANNOTH_PRIME  , 1f / 5000f),
+    entry(ItemID.PET_DAGANNOTH_REX    , 1f / 5000f),
+    entry(ItemID.PET_DAGANNOTH_SUPREME, 1f / 5000f),
+    entry(ItemID.PET_DARK_CORE        , 1f / 5000f),
+    entry(ItemID.PET_CORPOREAL_CRITTER, 1f / 5000f),
+    entry(ItemID.PET_GENERAL_GRAARDOR , 1f / 5000f),
+    entry(ItemID.PET_KRIL_TSUTSAROTH  , 1f / 5000f),
+    entry(ItemID.PET_KRAKEN           , 1f / 3000f),
+    entry(ItemID.PET_KREEARRA         , 1f / 5000f),
+    entry(ItemID.PET_SMOKE_DEVIL      , 1f / 3000f),
+    entry(ItemID.PET_SNAKELING        , 1f / 4000f),
+    entry(ItemID.PET_ZILYANA          , 1f / 5000f),
+    entry(ItemID.PRINCE_BLACK_DRAGON  , 1f / 3000f),
+    entry(ItemID.SCORPIAS_OFFSPRING   , 1f / 2015.75f),
+    entry(ItemID.SKOTOS               , 1f / 65f),
+    entry(ItemID.SRARACHA             , 1f / 3000f),
+    entry(ItemID.TZREKJAD             , 1f / 200f),
+    entry(ItemID.VENENATIS_SPIDERLING , 1f / 2000f),
+    entry(ItemID.VETION_JR            , 1f / 2000f),
+    entry(ItemID.VORKI                , 1f / 3000f),
+    
+    entry(ItemID.BLOODHOUND       , 1f / 1000f),
+    entry(ItemID.CHOMPY_CHICK     , 1f / 500f),
+    entry(ItemID.HERBI            , 1f / 6500f),
+    entry(ItemID.PET_PENANCE_QUEEN, 1f / 1000f),
+    entry(ItemID.PHOENIX          , 1f / 5000f),
+    entry(ItemID.YOUNGLLEF        , 1f / 2000f),
+    entry(ItemID.SMOLCANO         , 1f / 2250f)
+  );
 
   public static final Map<String, Map<Integer, Float>> EVENT_TABLE_MAPPING = Map.ofEntries(
     entry("barrows"                , TABLE_BARROWS              ),
@@ -948,9 +994,9 @@ public final class RarityTables
     entry("larran's big chest"     , TABLE_LARRANS_BIG_CHEST    ),
     entry("the gauntlet"           , TABLE_THE_GAUNTLET         ),
     entry("elven crystal chest"    , TABLE_ELVEN_CRYSTAL_CHEST  ),
-    entry("crystal chest"          , TABLE_CRYSTAL_CHEST        )
+    entry("crystal chest"          , TABLE_CRYSTAL_CHEST        ),
+    entry("pet"                    , TABLE_PETS                 )
   );
-  // TODO: Pets
 
   // @formatter:on
 }
