@@ -80,7 +80,7 @@ public class ApiTool
     return CallRequestJson(request);
   }
 
-  public CompletableFuture<String> getIconUrl(int itemId, String itemName)
+  public CompletableFuture<String> getIconUrl(String searchType, int searchId, String searchName)
   {
     return CompletableFuture.supplyAsync(new Supplier<String>()
     {
@@ -90,8 +90,8 @@ public class ApiTool
         HttpUrl baseUrl = new HttpUrl.Builder().host(WIKI_ROOT).scheme("https").build();
 
         HttpUrl url = new HttpUrl.Builder().host(WIKI_ROOT).scheme("https").addPathSegments("w/Special:Lookup")
-            .addQueryParameter("type", "item").addQueryParameter("id", "" + itemId).addQueryParameter("name", itemName)
-            .build();
+            .addQueryParameter("type", searchType).addQueryParameter("id", "" + searchId)
+            .addQueryParameter("name", searchName).build();
 
         try
         {
@@ -103,7 +103,7 @@ public class ApiTool
         }
         catch (Exception e)
         {
-          System.err.println("Unable to get icon url for " + itemId + " " + itemName + ": " + e.getMessage() + "("
+          System.err.println("Unable to get icon url for " + searchId + " " + searchName + ": " + e.getMessage() + "("
               + url.toString() + ")");
           return null;
         }
