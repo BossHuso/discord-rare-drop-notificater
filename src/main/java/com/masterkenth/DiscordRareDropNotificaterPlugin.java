@@ -64,18 +64,6 @@ public class DiscordRareDropNotificaterPlugin extends Plugin
 
 	private final RarityChecker rarityChecker = new RarityChecker();
 
-	@Override
-	protected void startUp() throws Exception
-	{
-		log.info("Started");
-	}
-
-	@Override
-	protected void shutDown() throws Exception
-	{
-		log.info("Stopped");
-	}
-
 	private CompletableFuture<java.awt.Image> queuedScreenshot = null;
 
 	@Provides
@@ -103,10 +91,10 @@ public class DiscordRareDropNotificaterPlugin extends Plugin
 	@Subscribe
 	public void onLootReceived(LootReceived lootReceived)
 	{
-		// Only process EVENTS such as Barrows, CoX etc.
-		// For NPCs onNpcLootReceived receives more information and is used instead.
 		if (lootReceived.getType() != LootRecordType.EVENT)
 		{
+			// Only process EVENTS such as Barrows, CoX etc.
+			// For NPCs onNpcLootReceived receives more information and is used instead.
 			return;
 		}
 
@@ -124,7 +112,6 @@ public class DiscordRareDropNotificaterPlugin extends Plugin
 	@Subscribe
 	public void onChatMessage(ChatMessage event)
 	{
-		log.info("Chat: (" + event.getSender() + ", " + event.getName() + ") " + event.getMessage());
 		String chatMessage = event.getMessage();
 
 		if (PET_MESSAGES.stream().anyMatch(chatMessage::contains))
@@ -146,9 +133,8 @@ public class DiscordRareDropNotificaterPlugin extends Plugin
 
 	private CompletableFuture<Boolean> processItemRarityEvent(String eventName, int itemId, int quantity)
 	{
-		log.info("ProcessItemRarityEvent " + eventName + " " + itemId + " ("
-				+ itemManager.getItemComposition(itemId).getName() + ")");
 		float rarity = rarityChecker.CheckRarityEvent(eventName, itemId);
+
 		if (rarity >= 0)
 		{
 			log.info("ProcessItemRarityEvent " + eventName + " " + itemId + " ("
@@ -165,8 +151,7 @@ public class DiscordRareDropNotificaterPlugin extends Plugin
 		int npcId = npc.getId();
 		int npcCombatLevel = npc.getCombatLevel();
 		String npcName = npc.getName();
-		log.info(String.format("ProcessItemRarityNPC npc=(%d) %s lvl %d item=(%d) %s (%dx)", npcId, npcName, npcCombatLevel,
-				itemId, itemManager.getItemComposition(itemId).getName(), quantity));
+
 		return rarityChecker.CheckRarityNPC(npcId, itemId).thenCompose(rarity ->
 		{
 			int totalGeValue = itemManager.getItemPrice(itemId) * quantity;
@@ -210,7 +195,6 @@ public class DiscordRareDropNotificaterPlugin extends Plugin
 
 	private void sendScreenshotIfSupposedTo()
 	{
-		log.info("queuedScreenshot = " + (queuedScreenshot != null));
 		if (queuedScreenshot != null)
 		{
 			queuedScreenshot.thenAccept(screenshot ->
@@ -224,8 +208,6 @@ public class DiscordRareDropNotificaterPlugin extends Plugin
 	private CompletableFuture<Void> QueueLootNotification(String playerName, String playerIconUrl, int itemId,
 			int quantity, float rarity, int npcId, int npcCombatLevel, String npcName, String eventName, String webhookUrl)
 	{
-		log.info("QueueLootNotification");
-
 		Author author = new Author();
 		author.setName(playerName);
 
@@ -276,7 +258,6 @@ public class DiscordRareDropNotificaterPlugin extends Plugin
 		{
 			Webhook webhookData = new Webhook();
 			webhookData.setEmbeds(new Embed[] { embed });
-			log.info("QueueLootNotification sending");
 			return sendWebhookData(config.webhookUrl(), webhookData);
 		});
 	}
@@ -312,7 +293,6 @@ public class DiscordRareDropNotificaterPlugin extends Plugin
 		{
 			Webhook webhookData = new Webhook();
 			webhookData.setEmbeds(new Embed[] { embed });
-			log.info("queuePetNotification sending");
 			return sendWebhookData(config.webhookUrl(), webhookData);
 		});
 	}
@@ -331,10 +311,8 @@ public class DiscordRareDropNotificaterPlugin extends Plugin
 	{
 		JSONObject json = new JSONObject(webhookData);
 		String jsonStr = json.toString();
-		log.info("sendWebhookData");
 		return ApiTool.getInstance().postRaw(webhookUrl, jsonStr, "application/json").thenAccept(res ->
 		{
-			log.info("sendWebhookData sent");
 		});
 	}
 
