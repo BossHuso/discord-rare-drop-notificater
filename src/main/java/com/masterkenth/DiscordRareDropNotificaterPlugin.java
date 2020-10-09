@@ -379,7 +379,7 @@ public class DiscordRareDropNotificaterPlugin extends Plugin
 		}
 		else
 		{
-			return "Just got a pet, probably.";
+			return "Just got a pet.";
 		}
 	}
 
