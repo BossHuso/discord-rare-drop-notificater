@@ -960,6 +960,10 @@ public final class RarityTables
     entry(ItemID.RUNE_PLATELEGS   , 1f / 128f),
     entry(ItemID.RUNE_PLATESKIRT  , 1f / 128f)
   );
+
+  private static final Map<Integer, Float> TABLE_HESPORI = Map.ofEntries(
+    entry(ItemID.BOTTOMLESS_COMPOST_BUCKET, 1f / 35f)
+  );
   
   private static final Map<Integer, Float> TABLE_PETS = Map.ofEntries(
     // NOTE: Skilling pet rarity is all over the place based on level, method etc. so they're excluded (but roughly in the 1 / 100000's and up)
@@ -1022,6 +1026,7 @@ public final class RarityTables
     entry("the gauntlet"           , TABLE_THE_GAUNTLET         ),
     entry("elven crystal chest"    , TABLE_ELVEN_CRYSTAL_CHEST  ),
     entry("crystal chest"          , TABLE_CRYSTAL_CHEST        ),
+    entry("hespori"                , TABLE_HESPORI              ),
     entry("pet"                    , TABLE_PETS                 )
   );
 
