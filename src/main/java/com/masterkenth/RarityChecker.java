@@ -44,7 +44,7 @@ public class RarityChecker
   public float CheckRarityEvent(String eventName, int itemId)
   {
     String lowerName = eventName.toLowerCase();
-    Map<Integer, Float> table = RarityTables.EVENT_TABLE_MAPPING.getOrDefault(lowerName, null);
+    Map<Integer, Float> table = EventRarity.EVENT_TABLE_MAPPING.getOrDefault(lowerName, null);
     if (table != null)
     {
       int mapId = ItemVariationMapping.map(itemId);
