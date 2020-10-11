@@ -354,7 +354,8 @@ public class DiscordRareDropNotificaterPlugin extends Plugin
 		}
 		catch (Exception e)
 		{
-			return CompletableFuture.failedFuture(e);
+			log.error("Unable to send screenshot", e);
+			return CompletableFuture.completedFuture(null);
 		}
 	}
 
