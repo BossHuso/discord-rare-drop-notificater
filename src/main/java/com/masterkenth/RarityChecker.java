@@ -47,14 +47,18 @@ public class RarityChecker
     Map<Integer, Float> table = RarityTables.EVENT_TABLE_MAPPING.getOrDefault(lowerName, null);
     if (table != null)
     {
-      if (table.containsKey(itemId))
+      int mapId = ItemVariationMapping.map(itemId);
+      Collection<Integer> idVariations = ItemVariationMapping.getVariations(mapId);
+
+      for (Integer id : idVariations)
       {
-        return table.get(itemId);
+        if (table.containsKey(id))
+        {
+          return table.get(id);
+        }
       }
-      else
-      {
-        return -1f;
-      }
+
+      return -1f;
     }
     else
     {
