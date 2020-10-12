@@ -160,7 +160,7 @@ public class DiscordRareDropNotificaterPlugin extends Plugin
 
 	private CompletableFuture<Boolean> processItemRarityEvent(String eventName, int itemId, int quantity)
 	{
-		float rarity = rarityChecker.CheckRarityEvent(eventName, itemId);
+		float rarity = rarityChecker.CheckRarityEvent(eventName, itemId, itemManager);
 
 		if (rarity >= 0)
 		{
@@ -179,7 +179,7 @@ public class DiscordRareDropNotificaterPlugin extends Plugin
 		int npcCombatLevel = npc.getCombatLevel();
 		String npcName = npc.getName();
 
-		return rarityChecker.CheckRarityNPC(npcId, itemId).thenCompose(rarity ->
+		return rarityChecker.CheckRarityNPC(npcId, itemId, itemManager).thenCompose(rarity ->
 		{
 			int totalGeValue = itemManager.getItemPrice(itemId) * quantity;
 			int totalHaValue = itemManager.getItemComposition(itemId).getHaPrice() * quantity;

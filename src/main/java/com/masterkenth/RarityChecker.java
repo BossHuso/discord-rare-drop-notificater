@@ -35,40 +35,59 @@ import org.json.JSONArray;
 import org.json.JSONObject;
 
 import lombok.extern.slf4j.Slf4j;
-
+import net.runelite.client.game.ItemManager;
 import net.runelite.client.game.ItemVariationMapping;
 
 @Slf4j
 public class RarityChecker
 {
-  public float CheckRarityEvent(String eventName, int itemId)
+  public float CheckRarityEvent(String eventName, int itemId, ItemManager itemManager)
   {
     String lowerName = eventName.toLowerCase();
     Map<Integer, Float> table = EventRarity.EVENT_TABLE_MAPPING.getOrDefault(lowerName, null);
     if (table != null)
     {
-      int mapId = ItemVariationMapping.map(itemId);
-      Collection<Integer> idVariations = ItemVariationMapping.getVariations(mapId);
-
-      for (Integer id : idVariations)
+      if (table.containsKey(itemId))
       {
-        if (table.containsKey(id))
-        {
-          return table.get(id);
-        }
+        return table.get(itemId);
       }
+      else
+      {
+        int mapId = ItemVariationMapping.map(itemId);
+        Collection<Integer> idVariations = ItemVariationMapping.getVariations(mapId);
 
-      return -1f;
+        String origName = itemManager.getItemComposition(itemId).getName();
+
+        for (Integer id : idVariations)
+        {
+          if (table.containsKey(id))
+          {
+            String variationName = itemManager.getItemComposition(id).getName();
+            if (origName.equals(variationName))
+            {
+              return table.get(id);
+            }
+            else
+            {
+              log.warn(String.format("item id %d=%d found in table '%s' but other name ('%s' vs '%s')", itemId, id,
+                  eventName, origName, variationName));
+            }
+          }
+        }
+
+        log.warn(String.format("no rarity for item %d in table '%s'", itemId, eventName));
+        return -1f;
+      }
     }
     else
     {
-      log.warn("No event table for '" + eventName + "'");
+      log.warn(String.format("No event table for '%s'", eventName));
     }
 
     return -1f;
   }
 
-  public CompletableFuture<Float> CheckRarityNPC(int npcId, int itemId)
+  public CompletableFuture<Float> CheckRarityNPC(int npcId, int itemId, ItemManager itemManager)
   {
     CompletableFuture<Float> f = new CompletableFuture<>();
 
@@ -79,16 +98,33 @@ public class RarityChecker
         JSONArray drops = npcJson.getJSONArray("drops");
         int mapId = ItemVariationMapping.map(itemId);
         Collection<Integer> idVariations = ItemVariationMapping.getVariations(mapId);
+        String origName = itemManager.getItemComposition(itemId).getName();
 
         for (int i = 0; i < drops.length(); i++)
         {
           JSONObject drop = drops.getJSONObject(i);
           int dropId = drop.getInt("id");
-          if (idVariations.contains(dropId))
+
+          if (dropId == itemId)
           {
             float rarity = drop.getFloat("rarity");
             f.complete(rarity);
             return;
+          }
+          else if (idVariations.contains(dropId))
+          {
+            String variationName = itemManager.getItemComposition(dropId).getName();
+            if (origName.equals(variationName))
+            {
+              float rarity = drop.getFloat("rarity");
+              f.complete(rarity);
+              return;
+            }
+            else
+            {
+              log.warn(String.format("item id %d=%d found in npc %d drops but other name ('%s' vs '%s')", itemId,
+                  dropId, npcId, origName, variationName));
+            }
           }
         }
         // No entry for item, default to 100% drop
