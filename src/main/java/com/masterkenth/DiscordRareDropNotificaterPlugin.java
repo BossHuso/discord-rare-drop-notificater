@@ -224,7 +224,9 @@ public class DiscordRareDropNotificaterPlugin extends Plugin
 	{
 		if (queuedScreenshot != null)
 		{
-			queuedScreenshot.thenAccept(screenshot ->
+			CompletableFuture<java.awt.Image> copy = queuedScreenshot;
+			queuedScreenshot = null;
+			copy.thenAccept(screenshot ->
 			{
 				sendScreenshot(config.webhookUrl(), screenshot);
 				queuedScreenshot = null;
