@@ -29,7 +29,10 @@ package com.masterkenth;
 
 import org.json.JSONObject;
 
+import net.runelite.client.RuneLite;
+
 import java.io.IOException;
+import java.io.File;
 
 import java.util.concurrent.CompletableFuture;
 import java.util.function.Supplier;
@@ -47,6 +50,7 @@ import okhttp3.OkHttpClient;
 import okhttp3.Request;
 import okhttp3.Response;
 import okhttp3.ResponseBody;
+import okhttp3.Cache;
 import okhttp3.Call;
 import okhttp3.Callback;
 import okhttp3.RequestBody;
@@ -61,13 +65,16 @@ public class ApiTool
   private static final String WIKI_ROOT = "oldschool.runescape.wiki";
   private static ApiTool _instance;
 
-  private OkHttpClient httpClient = new OkHttpClient();
+  private OkHttpClient httpClient = null;
 
   public static ApiTool getInstance()
   {
     if (_instance == null)
     {
       _instance = new ApiTool();
+      _instance.httpClient = new OkHttpClient.Builder()
+          .cache(new Cache(new File(RuneLite.CACHE_DIR, "okhttp_drdn"), 20 * 1024 * 1024)) // 20mb cache
+          .build();
     }
     return _instance;
   }
@@ -159,7 +166,6 @@ public class ApiTool
 
   private CompletableFuture<ResponseBody> callRequest(Request request)
   {
-    System.out.println("ApiTool " + request.url().toString());
     CompletableFuture<ResponseBody> future = new CompletableFuture<>();
 
     httpClient.newCall(request).enqueue(new Callback()
@@ -173,6 +179,7 @@ public class ApiTool
       @Override
       public void onResponse(Call call, Response response) throws IOException
       {
+        System.out.println(String.format("ApiTool %s (%d)", request.url().toString(), response.code()));
         try (ResponseBody responseBody = response.body())
         {
           if (!response.isSuccessful())
