@@ -179,7 +179,6 @@ public class ApiTool
       @Override
       public void onResponse(Call call, Response response) throws IOException
       {
-        System.out.println(String.format("ApiTool %s (%d)", request.url().toString(), response.code()));
         try (ResponseBody responseBody = response.body())
         {
           if (!response.isSuccessful())
@@ -200,7 +199,6 @@ public class ApiTool
 
   private CompletableFuture<JSONObject> CallRequestJson(Request request)
   {
-    System.out.println("ApiTool " + request.url().toString());
     return callRequest(request).thenCompose(responseBody ->
     {
       CompletableFuture<JSONObject> f = new CompletableFuture<>();

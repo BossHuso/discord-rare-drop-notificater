@@ -1042,7 +1042,6 @@ public enum EventRarity
 
   private static ImmutableMap<String, ImmutableMap<Integer, Float>> initEventMapping()
   {
-    System.out.println("EVENT RARITY MAPPING INIT");
     Map<String, ImmutableMap.Builder<Integer, Float>> temp = new HashMap<>();
     for (EventRarity r : values())
     {
@@ -1056,7 +1055,6 @@ public enum EventRarity
     for (String eventName : temp.keySet())
     {
       builder.put(eventName, temp.get(eventName).build());
-      System.out.println("MAPPED " + eventName);
     }
 
     return builder.build();

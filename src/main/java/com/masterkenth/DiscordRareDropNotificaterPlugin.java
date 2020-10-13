@@ -164,8 +164,6 @@ public class DiscordRareDropNotificaterPlugin extends Plugin
 
 		if (rarity >= 0)
 		{
-			log.info("ProcessItemRarityEvent " + eventName + " " + itemId + " ("
-					+ itemManager.getItemComposition(itemId).getName() + ") 1/" + (1f / rarity));
 			queueScreenshot();
 			return QueueLootNotification(getPlayerName(), getPlayerIconUrl(), itemId, quantity, rarity, -1, -1, null,
 					eventName, config.webhookUrl()).thenApply(_v -> true);
@@ -186,9 +184,6 @@ public class DiscordRareDropNotificaterPlugin extends Plugin
 			if (rarity <= (1f / config.minRarity()) || totalGeValue >= config.minValue() || totalHaValue >= config.minValue())
 			{
 				CompletableFuture<Boolean> f = new CompletableFuture<>();
-				log.info(String.format("ProcessItemRarityNPC npc=(%d) %s lvl %d item=(%d) %s (%dx) rarity=1/%d GE=%d HA=%d",
-						npcId, npcName, npcCombatLevel, itemId, itemManager.getItemComposition(itemId).getName(), quantity,
-						(int) (1f / rarity), totalGeValue, totalHaValue));
 				queueScreenshot();
 				QueueLootNotification(getPlayerName(), getPlayerIconUrl(), itemId, quantity, rarity, npcId, npcCombatLevel,
 						npcName, null, config.webhookUrl()).handle((_v, e) ->
