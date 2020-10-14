@@ -15,7 +15,7 @@
       "name": "Plugin Test",
       "request": "launch",
       "mainClass": "com.masterkenth.DiscordRareDropNotificaterPluginTest",
-      "projectName": "discordraredropnotificater"
+      "projectName": "discord-rare-drop-notificater"
     }
   ]
 }
