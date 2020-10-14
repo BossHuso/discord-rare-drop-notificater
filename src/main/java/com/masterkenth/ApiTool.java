@@ -28,6 +28,9 @@
 package com.masterkenth;
 
 import org.json.JSONObject;
+import org.jsoup.Jsoup;
+import org.jsoup.nodes.Document;
+import org.jsoup.nodes.Element;
 
 import net.runelite.client.RuneLite;
 
@@ -35,15 +38,6 @@ import java.io.IOException;
 import java.io.File;
 
 import java.util.concurrent.CompletableFuture;
-import java.util.function.Supplier;
-
-import com.gargoylesoftware.htmlunit.BrowserVersion;
-import com.gargoylesoftware.htmlunit.IncorrectnessListener;
-import com.gargoylesoftware.htmlunit.SilentCssErrorHandler;
-import com.gargoylesoftware.htmlunit.WebClient;
-import com.gargoylesoftware.htmlunit.html.DomNode;
-import com.gargoylesoftware.htmlunit.html.HtmlPage;
-import com.gargoylesoftware.htmlunit.javascript.SilentJavaScriptErrorListener;
 
 import okhttp3.HttpUrl;
 import okhttp3.OkHttpClient;
@@ -79,21 +73,6 @@ public class ApiTool
     return _instance;
   }
 
-  public WebClient getWebClient()
-  {
-    WebClient htmlClient = new WebClient(BrowserVersion.CHROME);
-    htmlClient.setCssErrorHandler(new SilentCssErrorHandler());
-    htmlClient.setJavaScriptErrorListener(new SilentJavaScriptErrorListener());
-    htmlClient.setIncorrectnessListener(new IncorrectnessListener()
-    {
-      @Override
-      public void notify(String message, Object origin)
-      {
-      }
-    });
-    return htmlClient;
-  }
-
   public CompletableFuture<JSONObject> getNPC(int npcId)
   {
     HttpUrl url = new HttpUrl.Builder().scheme("https").host(API_ROOT).addPathSegment(API_PATH_NPCS)
@@ -116,32 +95,40 @@ public class ApiTool
 
   public CompletableFuture<String> getIconUrl(String searchType, int searchId, String searchName)
   {
-    return CompletableFuture.supplyAsync(new Supplier<String>()
+    HttpUrl baseUrl = new HttpUrl.Builder().host(WIKI_ROOT).scheme("https").build();
+    HttpUrl url = baseUrl.newBuilder().addPathSegments("w/Special:Lookup").addQueryParameter("type", searchType)
+        .addQueryParameter("id", "" + searchId).addQueryParameter("name", searchName).build();
+
+    Request request = new Request.Builder().url(url).build();
+
+    return callRequest(request).thenApply(rb ->
     {
-      @Override
-      public String get()
+      try
       {
-        HttpUrl baseUrl = new HttpUrl.Builder().host(WIKI_ROOT).scheme("https").build();
+        String bodyString = rb.string();
 
-        HttpUrl url = new HttpUrl.Builder().host(WIKI_ROOT).scheme("https").addPathSegments("w/Special:Lookup")
-            .addQueryParameter("type", searchType).addQueryParameter("id", "" + searchId)
-            .addQueryParameter("name", searchName).build();
-
-        try
+        Document doc = Jsoup.parse(bodyString);
+        Element el = doc.selectFirst("td.inventory-image a.image img");
+        if (el != null)
         {
-          HtmlPage page = getWebClient().getPage(url.toString());
-          DomNode imgNode = page.querySelector("td.inventory-image a.image img");
-          String localIconPath = imgNode.getAttributes().getNamedItem("src").getNodeValue().substring(1);
-          String absoluteIconPath = baseUrl.toString() + localIconPath;
+          String srcAttr = el.attributes().get("src");
+          String absoluteIconPath = baseUrl.toString() + srcAttr.substring(1);
           return absoluteIconPath;
         }
-        catch (Exception e)
-        {
-          System.err.println("Unable to get icon url for " + searchId + " " + searchName + ": " + e.getMessage() + "("
-              + url.toString() + ")");
-          return null;
-        }
       }
+      catch (Exception e)
+      {
+        System.err.println("Unable to get icon url for " + searchId + " " + searchName + ": " + e.getMessage() + "("
+            + url.toString() + ")");
+      }
+      return null;
+    }).handle((v, e) ->
+    {
+      if (v != null)
+      {
+        return (String) v;
+      }
+      return null;
     });
   }
 

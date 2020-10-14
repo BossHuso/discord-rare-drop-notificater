@@ -17,7 +17,7 @@ dependencies {
 	compileOnly group: 'net.runelite', name:'client', version: runeLiteVersion
 	compile group: 'org.json', name: 'json', version: '20200518'
 	implementation 'com.squareup.okhttp3:okhttp:4.9.0'
-	compile group: 'net.sourceforge.htmlunit', name: 'htmlunit', version: '2.44.0'
+	compile group: 'org.jsoup', name: 'jsoup', version: '1.13.1'
 
 	testImplementation 'junit:junit:4.12'
 	testImplementation 'org.slf4j:slf4j-simple:1.7.12'
