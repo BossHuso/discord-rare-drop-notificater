@@ -16,7 +16,7 @@ def runeLiteVersion = '1.6.29'
 dependencies {
 	compileOnly group: 'net.runelite', name:'client', version: runeLiteVersion
 	compile group: 'org.json', name: 'json', version: '20200518'
-	implementation 'com.squareup.okhttp3:okhttp:4.9.0'
+	implementation 'com.squareup.okhttp3:okhttp:3.7.0'
 	compile group: 'org.jsoup', name: 'jsoup', version: '1.13.1'
 
 	testImplementation 'junit:junit:4.12'

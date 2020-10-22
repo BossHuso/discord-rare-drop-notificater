@@ -134,7 +134,7 @@ public class ApiTool
 
   public CompletableFuture<ResponseBody> postRaw(String url, String data, String type)
   {
-    Request request = new Request.Builder().url(url).post(RequestBody.create(data, MediaType.parse(type))).build();
+    Request request = new Request.Builder().url(url).post(RequestBody.create(MediaType.parse(type), data)).build();
 
     return callRequest(request);
   }
@@ -142,7 +142,7 @@ public class ApiTool
   public CompletableFuture<Void> postFormImage(String url, byte[] imageBytes, String type)
   {
     MultipartBody.Builder requestBuilder = new MultipartBody.Builder().setType(MultipartBody.FORM)
-        .addFormDataPart("file", "image.png", RequestBody.create(imageBytes, MediaType.parse(type)));
+        .addFormDataPart("file", "image.png", RequestBody.create(MediaType.parse(type), imageBytes));
 
     Request request = new Request.Builder().url(url).post(requestBuilder.build()).build();
 
