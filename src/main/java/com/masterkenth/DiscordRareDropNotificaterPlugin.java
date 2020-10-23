@@ -161,12 +161,16 @@ public class DiscordRareDropNotificaterPlugin extends Plugin
 			log.info(String.format("Possible pet: duplicate=%b (%s, %s) %s", isDuplicate, event.getSender(), event.getName(),
 					event.getMessage()));
 
-			getScreenshot()
+			CompletableFuture<java.awt.Image> screenshotFuture = config.sendScreenshot() ? getScreenshot()
+					: CompletableFuture.completedFuture(null);
+
+			screenshotFuture
 					// Waiting for screenshot before checking pet allows us to wait one frame, in
 					// case pet data is not available yet
 					// TODO: Figure out how to get pet info
 					.thenApply(screenshot -> queuePetNotification(getPlayerName(), getPlayerIconUrl(), null, -1, isDuplicate)
-							.thenCompose(_v -> sendScreenshot(config.webhookUrl(), screenshot)))
+							.thenCompose(_v -> screenshot != null ? sendScreenshot(config.webhookUrl(), screenshot)
+									: CompletableFuture.completedFuture(null)))
 					.exceptionally(e ->
 					{
 						log.error(String.format("onChatMessage (pet) error: %s", e.getMessage()), e);
@@ -227,7 +231,7 @@ public class DiscordRareDropNotificaterPlugin extends Plugin
 
 	private void queueScreenshot()
 	{
-		if (queuedScreenshot == null)
+		if (queuedScreenshot == null && config.sendScreenshot())
 		{
 			queuedScreenshot = getScreenshot();
 		}
@@ -235,7 +239,7 @@ public class DiscordRareDropNotificaterPlugin extends Plugin
 
 	private void sendScreenshotIfSupposedTo()
 	{
-		if (queuedScreenshot != null)
+		if (queuedScreenshot != null && config.sendScreenshot())
 		{
 			CompletableFuture<java.awt.Image> copy = queuedScreenshot;
 			queuedScreenshot = null;

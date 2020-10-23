@@ -59,4 +59,10 @@ public interface DiscordRareDropNotificaterConfig extends Config
 	{
 		return 50000;
 	}
+
+	@ConfigItem(keyName = "sendscreenshot", name = "Send Screenshot", description = "Whether to send a screenshot")
+	default boolean sendScreenshot()
+	{
+		return true;
+	}
 }
