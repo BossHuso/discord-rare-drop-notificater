@@ -38,6 +38,7 @@ import com.masterkenth.discord.Webhook;
 import org.json.JSONObject;
 import java.util.List;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collection;
 import java.util.Locale;
 import java.util.concurrent.CompletableFuture;
@@ -108,7 +109,17 @@ public class DiscordRareDropNotificaterPlugin extends Plugin
 		List<CompletableFuture<Boolean>> futures = new ArrayList<CompletableFuture<Boolean>>();
 		for (ItemStack item : items)
 		{
-			futures.add(processItemRarityNPC(npc, item.getId(), item.getQuantity()));
+			ItemComposition comp = itemManager.getItemComposition(item.getId());
+			if (!shouldBeIgnored(comp.getName()))
+			{
+				futures.add(processItemRarityNPC(npc, item.getId(), item.getQuantity()));
+			}
+		}
+
+		if (futures.size() > 0)
+		{
+			CompletableFuture.allOf(futures.toArray(new CompletableFuture[futures.size()]))
+					.thenAccept(_v -> sendScreenshotIfSupposedTo());
 		}
 
 		CompletableFuture.allOf(futures.toArray(new CompletableFuture[futures.size()]))
@@ -135,7 +146,11 @@ public class DiscordRareDropNotificaterPlugin extends Plugin
 		List<CompletableFuture<Boolean>> futures = new ArrayList<CompletableFuture<Boolean>>();
 		for (ItemStack item : items)
 		{
-			futures.add(processItemRarityEvent(lootReceived.getName(), item.getId(), item.getQuantity()));
+			ItemComposition comp = itemManager.getItemComposition(item.getId());
+			if (!shouldBeIgnored(comp.getName()))
+			{
+				futures.add(processItemRarityEvent(lootReceived.getName(), item.getId(), item.getQuantity()));
+			}
 		}
 
 		CompletableFuture.allOf(futures.toArray(new CompletableFuture[futures.size()]))
@@ -146,6 +161,11 @@ public class DiscordRareDropNotificaterPlugin extends Plugin
 							lootReceived.getItems().stream().map(i -> "" + i.getId()).reduce("", (p, c) -> p + ", " + c)));
 					return null;
 				});
+		if (futures.size() > 0)
+		{
+			CompletableFuture.allOf(futures.toArray(new CompletableFuture[futures.size()]))
+					.thenAccept(_v -> sendScreenshotIfSupposedTo());
+		}
 	}
 
 	@Subscribe
@@ -178,6 +198,13 @@ public class DiscordRareDropNotificaterPlugin extends Plugin
 						return null;
 					});
 		}
+	}
+
+	private boolean shouldBeIgnored(String itemName)
+	{
+		String lowerName = itemName.toLowerCase();
+		List<String> keywords = Arrays.asList(config.ignoredKeywords().split(","));
+		return keywords.stream().anyMatch(key -> key.length() > 0 && lowerName.contains(key.toLowerCase()));
 	}
 
 	private CompletableFuture<Boolean> processItemRarityEvent(String eventName, int itemId, int quantity)

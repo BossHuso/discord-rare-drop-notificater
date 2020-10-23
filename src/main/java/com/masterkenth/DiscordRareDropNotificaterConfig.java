@@ -65,4 +65,14 @@ public interface DiscordRareDropNotificaterConfig extends Config
 	{
 		return true;
 	}
+
+	@ConfigItem(
+			keyName = "ignoredkeywords",
+			name = "Ignored Keywords",
+			description = "(NPC drops only) comma-separated list of keywords in item name for items to ignore"
+	)
+	default String ignoredKeywords()
+	{
+		return "grimy";
+	}
 }
