@@ -42,6 +42,7 @@ import java.util.Arrays;
 import java.util.Collection;
 import java.util.Locale;
 import java.util.concurrent.CompletableFuture;
+import java.util.stream.Collectors;
 import java.io.ByteArrayOutputStream;
 import java.text.NumberFormat;
 import java.awt.image.BufferedImage;
@@ -189,7 +190,7 @@ public class DiscordRareDropNotificaterPlugin extends Plugin
 					// case pet data is not available yet
 					// TODO: Figure out how to get pet info
 					.thenApply(screenshot -> queuePetNotification(getPlayerName(), getPlayerIconUrl(), null, -1, isDuplicate)
-							.thenCompose(_v -> screenshot != null ? sendScreenshot(config.webhookUrl(), screenshot)
+							.thenCompose(_v -> screenshot != null ? sendScreenshot(getWebhookUrls(), screenshot)
 									: CompletableFuture.completedFuture(null)))
 					.exceptionally(e ->
 					{
@@ -270,7 +271,7 @@ public class DiscordRareDropNotificaterPlugin extends Plugin
 		{
 			CompletableFuture<java.awt.Image> copy = queuedScreenshot;
 			queuedScreenshot = null;
-			copy.thenAccept(screenshot -> sendScreenshot(config.webhookUrl(), screenshot)).handle((v, e) ->
+			copy.thenAccept(screenshot -> sendScreenshot(getWebhookUrls(), screenshot)).handle((v, e) ->
 			{
 				if (e != null)
 				{
@@ -340,7 +341,7 @@ public class DiscordRareDropNotificaterPlugin extends Plugin
 		{
 			Webhook webhookData = new Webhook();
 			webhookData.setEmbeds(new Embed[] { embed });
-			return sendWebhookData(config.webhookUrl(), webhookData);
+			return sendWebhookData(getWebhookUrls(), webhookData);
 		});
 	}
 
@@ -375,7 +376,7 @@ public class DiscordRareDropNotificaterPlugin extends Plugin
 		{
 			Webhook webhookData = new Webhook();
 			webhookData.setEmbeds(new Embed[] { embed });
-			return sendWebhookData(config.webhookUrl(), webhookData);
+			return sendWebhookData(getWebhookUrls(), webhookData);
 		});
 	}
 
@@ -389,23 +390,71 @@ public class DiscordRareDropNotificaterPlugin extends Plugin
 		return f;
 	}
 
-	private CompletableFuture<Void> sendWebhookData(String webhookUrl, Webhook webhookData)
+	private CompletableFuture<Void> sendWebhookData(List<String> webhookUrls, Webhook webhookData)
 	{
 		JSONObject json = new JSONObject(webhookData);
 		String jsonStr = json.toString();
-		return ApiTool.getInstance().postRaw(webhookUrl, jsonStr, "application/json").thenAccept(res ->
+
+		List<Throwable> exceptions = new ArrayList<>();
+		List<CompletableFuture<Void>> sends = webhookUrls.stream()
+				.map(url -> ApiTool.getInstance().postRaw(url, jsonStr, "application/json").handle((_v, e) ->
+				{
+					if (e != null)
+					{
+						exceptions.add(e);
+					}
+					return null;
+				}).thenAccept(_v ->
+				{
+				})).collect(Collectors.toList());
+
+		return CompletableFuture.allOf(sends.toArray(new CompletableFuture[sends.size()])).thenCompose(_v ->
 		{
+			if (exceptions.size() > 0)
+			{
+				log.error(String.format("sendWebhookData got %d error(s)", exceptions.size()));
+				exceptions.forEach(t -> log.error(t.getMessage()));
+				CompletableFuture<Void> f = new CompletableFuture<>();
+				f.completeExceptionally(exceptions.get(0));
+				return f;
+			}
+			return CompletableFuture.completedFuture(null);
 		});
 	}
 
-	private CompletableFuture<Void> sendScreenshot(String webhookUrl, java.awt.Image screenshot)
+	private CompletableFuture<Void> sendScreenshot(List<String> webhookUrls, java.awt.Image screenshot)
 	{
 		try
 		{
 			ByteArrayOutputStream baos = new ByteArrayOutputStream();
 			ImageIO.write((BufferedImage) screenshot, "png", baos);
 			byte[] imageBytes = baos.toByteArray();
-			return ApiTool.getInstance().postFormImage(webhookUrl, imageBytes, "image/png");
+
+			List<Throwable> exceptions = new ArrayList<>();
+			List<CompletableFuture<Void>> sends = webhookUrls.stream()
+					.map(url -> ApiTool.getInstance().postFormImage(url, imageBytes, "image/png").handle((_v, e) ->
+					{
+						if (e != null)
+						{
+							exceptions.add(e);
+						}
+						return null;
+					}).thenAccept(_v ->
+					{
+					})).collect(Collectors.toList());
+
+			return CompletableFuture.allOf(sends.toArray(new CompletableFuture[sends.size()])).thenCompose(_v ->
+			{
+				if (exceptions.size() > 0)
+				{
+					log.error(String.format("sendScreenshot got %d error(s)", exceptions.size()));
+					exceptions.forEach(t -> log.error(t.getMessage()));
+					CompletableFuture<Void> f = new CompletableFuture<>();
+					f.completeExceptionally(exceptions.get(0));
+					return f;
+				}
+				return CompletableFuture.completedFuture(null);
+			});
 		}
 		catch (Exception e)
 		{
@@ -494,5 +543,11 @@ public class DiscordRareDropNotificaterPlugin extends Plugin
 	private String getPlayerName()
 	{
 		return client.getLocalPlayer().getName();
+	}
+
+	private List<String> getWebhookUrls()
+	{
+		return Arrays.asList(config.webhookUrl().split("\n")).stream().filter(u -> u.length() > 0)
+				.collect(Collectors.toList());
 	}
 }

@@ -34,7 +34,11 @@ import net.runelite.client.config.ConfigItem;
 @ConfigGroup("discordraredropnotificater")
 public interface DiscordRareDropNotificaterConfig extends Config
 {
-	@ConfigItem(keyName = "webhookurl", name = "Discord webhook URL", description = "The Discord Webhook URL to use")
+	@ConfigItem(
+			keyName = "webhookurl",
+			name = "Discord webhook URL(s)",
+			description = "The Discord Webhook URL(s) to use, separated by newline"
+	)
 	default String webhookUrl()
 	{
 		return "";
