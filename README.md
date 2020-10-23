@@ -48,6 +48,7 @@ This value is OR'd with **Min NPC Rarity**, meaning the drop will be posted if i
 
 ## TODO
 * Get pet info when a pet drop is detected
+* Logically combine notification with screenshot (right now if any notification fails no screenshots are sent at all)
 
 ## Misc
 This project follows [Semantic Commit Messages](https://seesparkbox.com/foundry/semantic_commit_messages).
