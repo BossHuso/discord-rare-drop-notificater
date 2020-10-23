@@ -73,6 +73,6 @@ public interface DiscordRareDropNotificaterConfig extends Config
 	)
 	default String ignoredKeywords()
 	{
-		return "grimy";
+		return "grimy,seed";
 	}
 }
