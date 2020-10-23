@@ -101,8 +101,9 @@ public class ApiTool
 
     Request request = new Request.Builder().url(url).build();
 
-    return callRequest(request).thenApply(rb ->
+    return callRequest(request).thenCompose(rb ->
     {
+      CompletableFuture<String> f = new CompletableFuture<>();
       try
       {
         String bodyString = rb.string();
@@ -113,22 +114,14 @@ public class ApiTool
         {
           String srcAttr = el.attributes().get("src");
           String absoluteIconPath = baseUrl.toString() + srcAttr.substring(1);
-          return absoluteIconPath;
+          f.complete(absoluteIconPath);
         }
       }
       catch (Exception e)
       {
-        System.err.println("Unable to get icon url for " + searchId + " " + searchName + ": " + e.getMessage() + "("
-            + url.toString() + ")");
+        f.completeExceptionally(e);
       }
-      return null;
-    }).handle((v, e) ->
-    {
-      if (v != null)
-      {
-        return (String) v;
-      }
-      return null;
+      return f;
     });
   }
 

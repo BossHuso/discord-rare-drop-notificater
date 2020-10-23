@@ -112,7 +112,13 @@ public class DiscordRareDropNotificaterPlugin extends Plugin
 		}
 
 		CompletableFuture.allOf(futures.toArray(new CompletableFuture[futures.size()]))
-				.thenAccept(_v -> sendScreenshotIfSupposedTo());
+				.thenAccept(_v -> sendScreenshotIfSupposedTo()).exceptionally(e ->
+				{
+					log.error(String.format("onNpcLootReceived error: %s", e.getMessage()), e);
+					log.error(String.format("npc %d items %s", npcLootReceived.getNpc().getId(),
+							npcLootReceived.getItems().stream().map(i -> "" + i.getId()).reduce("", (p, c) -> p + ", " + c)));
+					return null;
+				});
 	}
 
 	@Subscribe
@@ -133,7 +139,13 @@ public class DiscordRareDropNotificaterPlugin extends Plugin
 		}
 
 		CompletableFuture.allOf(futures.toArray(new CompletableFuture[futures.size()]))
-				.thenAccept(_v -> sendScreenshotIfSupposedTo());
+				.thenAccept(_v -> sendScreenshotIfSupposedTo()).exceptionally(e ->
+				{
+					log.error(String.format("onLootReceived error: %s", e.getMessage()), e);
+					log.error(String.format("event %s items %s", lootReceived.getName(),
+							lootReceived.getItems().stream().map(i -> "" + i.getId()).reduce("", (p, c) -> p + ", " + c)));
+					return null;
+				});
 	}
 
 	@Subscribe
@@ -141,20 +153,26 @@ public class DiscordRareDropNotificaterPlugin extends Plugin
 	{
 		String chatMessage = event.getMessage();
 
+		// TODO: filter by sender (e.g. game not player) but for now allow all for
+		// testing
 		if (PET_MESSAGES.stream().anyMatch(chatMessage::contains))
 		{
 			boolean isDuplicate = chatMessage.contains(PET_MESSAGE_DUPLICATE);
 			log.info(String.format("Possible pet: duplicate=%b (%s, %s) %s", isDuplicate, event.getSender(), event.getName(),
 					event.getMessage()));
-			getScreenshot().thenAccept(screenshot ->
-			{
-				// Waiting for screenshot before checking pet allows us to wait one frame, in
-				// case pet data is not available yet
 
-				// TODO: Figure out how to get pet info
-				queuePetNotification(getPlayerName(), getPlayerIconUrl(), null, -1, isDuplicate)
-						.thenCompose(_v -> sendScreenshot(config.webhookUrl(), screenshot));
-			});
+			getScreenshot()
+					// Waiting for screenshot before checking pet allows us to wait one frame, in
+					// case pet data is not available yet
+					// TODO: Figure out how to get pet info
+					.thenApply(screenshot -> queuePetNotification(getPlayerName(), getPlayerIconUrl(), null, -1, isDuplicate)
+							.thenCompose(_v -> sendScreenshot(config.webhookUrl(), screenshot)))
+					.exceptionally(e ->
+					{
+						log.error(String.format("onChatMessage (pet) error: %s", e.getMessage()), e);
+						log.error(event.toString());
+						return null;
+					});
 		}
 	}
 
@@ -221,10 +239,14 @@ public class DiscordRareDropNotificaterPlugin extends Plugin
 		{
 			CompletableFuture<java.awt.Image> copy = queuedScreenshot;
 			queuedScreenshot = null;
-			copy.thenAccept(screenshot ->
+			copy.thenAccept(screenshot -> sendScreenshot(config.webhookUrl(), screenshot)).handle((v, e) ->
 			{
-				sendScreenshot(config.webhookUrl(), screenshot);
+				if (e != null)
+				{
+					log.error(String.format("sendScreenshotIfSupposedTo error: %s", e.getMessage()), e);
+				}
 				queuedScreenshot = null;
+				return null;
 			});
 		}
 	}
@@ -261,10 +283,15 @@ public class DiscordRareDropNotificaterPlugin extends Plugin
 
 		Image thumbnail = new Image();
 		CompletableFuture<Void> iconFuture = ApiTool.getInstance()
-				.getIconUrl("item", itemId, itemManager.getItemComposition(itemId).getName()).thenAccept(iconUrl ->
+				.getIconUrl("item", itemId, itemManager.getItemComposition(itemId).getName()).handle((iconUrl, e) ->
 				{
+					if (e != null)
+					{
+						log.error(String.format("queueLootNotification (icon %d) error: %s", itemId, e.getMessage()), e);
+					}
 					thumbnail.setUrl(iconUrl);
 					embed.setThumbnail(thumbnail);
+					return null;
 				});
 
 		CompletableFuture<Void> descFuture = getLootNotificationDescription(itemId, quantity, npcId, npcCombatLevel,
@@ -272,7 +299,7 @@ public class DiscordRareDropNotificaterPlugin extends Plugin
 				{
 					if (e != null)
 					{
-						log.error("unable to get item desc for " + itemId + " (" + e.getMessage() + ")");
+						log.error(String.format("queueLootNotification (desc %d) error: %s", itemId, e.getMessage()), e);
 					}
 					embed.setDescription(notifDesc);
 					return null;
