@@ -183,7 +183,7 @@ public class DiscordRareDropNotificaterPlugin extends Plugin
 		if (rarity >= 0)
 		{
 			queueScreenshot();
-			return QueueLootNotification(getPlayerName(), getPlayerIconUrl(), itemId, quantity, rarity, -1, -1, null,
+			return queueLootNotification(getPlayerName(), getPlayerIconUrl(), itemId, quantity, rarity, -1, -1, null,
 					eventName, config.webhookUrl()).thenApply(_v -> true);
 		}
 		return CompletableFuture.completedFuture(false);
@@ -203,7 +203,7 @@ public class DiscordRareDropNotificaterPlugin extends Plugin
 			{
 				CompletableFuture<Boolean> f = new CompletableFuture<>();
 				queueScreenshot();
-				QueueLootNotification(getPlayerName(), getPlayerIconUrl(), itemId, quantity, rarity, npcId, npcCombatLevel,
+				queueLootNotification(getPlayerName(), getPlayerIconUrl(), itemId, quantity, rarity, npcId, npcCombatLevel,
 						npcName, null, config.webhookUrl()).handle((_v, e) ->
 						{
 							if (e != null)
@@ -251,7 +251,7 @@ public class DiscordRareDropNotificaterPlugin extends Plugin
 		}
 	}
 
-	private CompletableFuture<Void> QueueLootNotification(String playerName, String playerIconUrl, int itemId,
+	private CompletableFuture<Void> queueLootNotification(String playerName, String playerIconUrl, int itemId,
 			int quantity, float rarity, int npcId, int npcCombatLevel, String npcName, String eventName, String webhookUrl)
 	{
 		Author author = new Author();
