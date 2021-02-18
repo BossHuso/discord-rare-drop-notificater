@@ -174,8 +174,14 @@ public class DiscordRareDropNotificaterPlugin extends Plugin
 	{
 		String chatMessage = event.getMessage();
 
-		// TODO: filter by sender (e.g. game not player) but for now allow all for
-		// testing
+		if (event.getType() != ChatMessageType.GAMEMESSAGE
+				&& event.getType() != ChatMessageType.SPAM
+				&& event.getType() != ChatMessageType.TRADE
+				&& event.getType() != ChatMessageType.FRIENDSCHATNOTIFICATION)
+		{
+			return;
+		}
+
 		if (PET_MESSAGES.stream().anyMatch(chatMessage::contains))
 		{
 			boolean isDuplicate = chatMessage.contains(PET_MESSAGE_DUPLICATE);
