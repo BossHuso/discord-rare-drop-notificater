@@ -35,6 +35,7 @@ import com.masterkenth.discord.Field;
 import com.masterkenth.discord.Image;
 import com.masterkenth.discord.Webhook;
 
+import net.runelite.api.ChatMessageType;
 import org.json.JSONObject;
 import java.util.List;
 import java.util.ArrayList;
@@ -144,7 +145,7 @@ public class DiscordRareDropNotificaterPlugin extends Plugin
 		}
 
 		Collection<ItemStack> items = lootReceived.getItems();
-		List<CompletableFuture<Boolean>> futures = new ArrayList<CompletableFuture<Boolean>>();
+		List<CompletableFuture<Boolean>> futures = new ArrayList<>();
 		for (ItemStack item : items)
 		{
 			ItemComposition comp = itemManager.getItemComposition(item.getId());
@@ -174,8 +175,14 @@ public class DiscordRareDropNotificaterPlugin extends Plugin
 	{
 		String chatMessage = event.getMessage();
 
-		// TODO: filter by sender (e.g. game not player) but for now allow all for
-		// testing
+		if (event.getType() != ChatMessageType.GAMEMESSAGE
+				&& event.getType() != ChatMessageType.SPAM
+				&& event.getType() != ChatMessageType.TRADE
+				&& event.getType() != ChatMessageType.FRIENDSCHATNOTIFICATION)
+		{
+			return;
+		}
+
 		if (PET_MESSAGES.stream().anyMatch(chatMessage::contains))
 		{
 			boolean isDuplicate = chatMessage.contains(PET_MESSAGE_DUPLICATE);

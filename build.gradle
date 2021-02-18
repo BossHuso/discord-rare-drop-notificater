@@ -1,6 +1,7 @@
 plugins {
 	id 'java'
-  id "io.freefair.lombok" version "5.2.1"
+	id 'idea'
+    id "io.freefair.lombok" version "5.3.0"
 }
 
 repositories {
@@ -11,7 +12,7 @@ repositories {
 	mavenCentral()
 }
 
-def runeLiteVersion = '1.6.29'
+def runeLiteVersion = '1.7.0'
 
 dependencies {
 	compileOnly group: 'net.runelite', name:'client', version: runeLiteVersion
@@ -23,6 +24,13 @@ dependencies {
 	testImplementation 'org.slf4j:slf4j-simple:1.7.12'
 	testImplementation group: 'net.runelite', name:'client', version: runeLiteVersion, {
 		exclude group: 'ch.qos.logback', module: 'logback-classic'
+	}
+}
+
+idea {
+	module {
+		downloadJavadoc = false
+		downloadSources = false
 	}
 }
 
