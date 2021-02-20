@@ -1,4 +1,4 @@
-# Discord Rare Drop Notificater
+# Discord Rare Drop Notifier
 __Plugin for RuneLite__
 
 ![logo](readme-resources/logo.png)
@@ -52,3 +52,7 @@ This value is OR'd with **Min NPC Rarity**, meaning the drop will be posted if i
 
 ## Misc
 This project follows [Semantic Commit Messages](https://seesparkbox.com/foundry/semantic_commit_messages).
+
+
+##Original Author
+Huge thanks to @MasterKenth for creating this plugin.
