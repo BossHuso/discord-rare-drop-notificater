@@ -79,4 +79,14 @@ public interface DiscordRareDropNotificaterConfig extends Config
 	{
 		return "grimy,seed";
 	}
+
+	@ConfigItem(
+			keyName = "andinsteadofor",
+			name = "AND instead of OR",
+			description = "Whether drops should meet both rarity AND value requirements to get posted"
+	)
+	default boolean andInsteadOfOr()
+	{
+		return false;
+	}
 }
