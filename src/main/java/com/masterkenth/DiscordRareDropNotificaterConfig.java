@@ -64,6 +64,16 @@ public interface DiscordRareDropNotificaterConfig extends Config
 		return 50000;
 	}
 
+	@ConfigItem(
+			keyName = "andinsteadofor",
+			name = "Require both rarity and value",
+			description = "Whether drops should meet both rarity AND value requirements to get posted"
+	)
+	default boolean andInsteadOfOr()
+	{
+		return false;
+	}
+
 	@ConfigItem(keyName = "sendscreenshot", name = "Send Screenshot", description = "Whether to send a screenshot")
 	default boolean sendScreenshot()
 	{

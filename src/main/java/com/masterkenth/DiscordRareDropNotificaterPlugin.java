@@ -238,7 +238,11 @@ public class DiscordRareDropNotificaterPlugin extends Plugin
 		{
 			int totalGeValue = itemManager.getItemPrice(itemId) * quantity;
 			int totalHaValue = itemManager.getItemComposition(itemId).getHaPrice() * quantity;
-			if (rarity <= (1f / config.minRarity()) || totalGeValue >= config.minValue() || totalHaValue >= config.minValue())
+
+			boolean valueMet = totalGeValue >= config.minValue() || totalHaValue >= config.minValue();
+			boolean rarityMet = rarity <= (1f / config.minRarity());
+
+			if (config.andInsteadOfOr() ? (valueMet && rarityMet) : (valueMet || rarityMet))
 			{
 				CompletableFuture<Boolean> f = new CompletableFuture<>();
 				queueScreenshot();
