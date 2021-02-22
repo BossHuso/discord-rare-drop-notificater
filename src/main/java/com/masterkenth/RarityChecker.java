@@ -87,6 +87,17 @@ public class RarityChecker
     return -1f;
   }
 
+  public float CheckRarityPickpocket(String pickpocketName, int itemId, ItemManager itemManager)
+  {
+    Float rarity = PickpocketRarity.PICKPOCKET_TABLE_MAPPING.getOrDefault(itemId, null);
+    if (rarity != null)
+    {
+      return rarity;
+    }
+
+    return -1f;
+  }
+
   public CompletableFuture<Float> CheckRarityNPC(int npcId, int itemId, ItemManager itemManager)
   {
     CompletableFuture<Float> f = new CompletableFuture<>();
