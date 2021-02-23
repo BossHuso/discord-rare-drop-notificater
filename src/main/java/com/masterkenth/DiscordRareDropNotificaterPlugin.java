@@ -137,36 +137,66 @@ public class DiscordRareDropNotificaterPlugin extends Plugin
 	@Subscribe
 	public void onLootReceived(LootReceived lootReceived)
 	{
-		if (lootReceived.getType() != LootRecordType.EVENT)
+		// Only process EVENTS such as Barrows, CoX etc. and PICKPOCKET
+		// For NPCs onNpcLootReceived receives more information and is used instead.
+		if (lootReceived.getType() == LootRecordType.NPC)
 		{
-			// Only process EVENTS such as Barrows, CoX etc.
-			// For NPCs onNpcLootReceived receives more information and is used instead.
 			return;
 		}
 
 		Collection<ItemStack> items = lootReceived.getItems();
 		List<CompletableFuture<Boolean>> futures = new ArrayList<>();
-		for (ItemStack item : items)
+
+		if (lootReceived.getType() == LootRecordType.EVENT)
 		{
-			ItemComposition comp = itemManager.getItemComposition(item.getId());
-			if (!shouldBeIgnored(comp.getName()))
+			for (ItemStack item : items)
 			{
-				futures.add(processItemRarityEvent(lootReceived.getName(), item.getId(), item.getQuantity()));
+				ItemComposition comp = itemManager.getItemComposition(item.getId());
+				if (!shouldBeIgnored(comp.getName()))
+				{
+					futures.add(processItemRarityEvent(lootReceived.getName(), item.getId(), item.getQuantity()));
+				}
+			}
+
+			CompletableFuture.allOf(futures.toArray(new CompletableFuture[futures.size()]))
+					.thenAccept(_v -> sendScreenshotIfSupposedTo()).exceptionally(e ->
+			{
+				log.error(String.format("onLootReceived error: %s", e.getMessage()), e);
+				log.error(String.format("event %s items %s", lootReceived.getName(),
+						lootReceived.getItems().stream().map(i -> "" + i.getId()).reduce("", (p, c) -> p + ", " + c)));
+				return null;
+			});
+			if (futures.size() > 0)
+			{
+				CompletableFuture.allOf(futures.toArray(new CompletableFuture[futures.size()]))
+						.thenAccept(_v -> sendScreenshotIfSupposedTo());
 			}
 		}
 
-		CompletableFuture.allOf(futures.toArray(new CompletableFuture[futures.size()]))
-				.thenAccept(_v -> sendScreenshotIfSupposedTo()).exceptionally(e ->
-				{
-					log.error(String.format("onLootReceived error: %s", e.getMessage()), e);
-					log.error(String.format("event %s items %s", lootReceived.getName(),
-							lootReceived.getItems().stream().map(i -> "" + i.getId()).reduce("", (p, c) -> p + ", " + c)));
-					return null;
-				});
-		if (futures.size() > 0)
+		if (lootReceived.getType() == LootRecordType.PICKPOCKET)
 		{
+			for (ItemStack item : items)
+			{
+				ItemComposition comp = itemManager.getItemComposition(item.getId());
+				if (!shouldBeIgnored(comp.getName()))
+				{
+					futures.add(processItemRarityPickpocket(lootReceived.getName(), item.getId(), item.getQuantity()));
+				}
+			}
+
 			CompletableFuture.allOf(futures.toArray(new CompletableFuture[futures.size()]))
-					.thenAccept(_v -> sendScreenshotIfSupposedTo());
+					.thenAccept(_v -> sendScreenshotIfSupposedTo()).exceptionally(e ->
+			{
+				log.error(String.format("onLootReceived error: %s", e.getMessage()), e);
+				log.error(String.format("pickpocket %s items %s", lootReceived.getName(),
+						lootReceived.getItems().stream().map(i -> "" + i.getId()).reduce("", (p, c) -> p + ", " + c)));
+				return null;
+			});
+			if (futures.size() > 0)
+			{
+				CompletableFuture.allOf(futures.toArray(new CompletableFuture[futures.size()]))
+						.thenAccept(_v -> sendScreenshotIfSupposedTo());
+			}
 		}
 	}
 
@@ -224,6 +254,19 @@ public class DiscordRareDropNotificaterPlugin extends Plugin
 			queueScreenshot();
 			return queueLootNotification(getPlayerName(), getPlayerIconUrl(), itemId, quantity, rarity, -1, -1, null,
 					eventName, config.webhookUrl()).thenApply(_v -> true);
+		}
+		return CompletableFuture.completedFuture(false);
+	}
+
+	private CompletableFuture<Boolean> processItemRarityPickpocket(String pickpocketName, int itemId, int quantity)
+	{
+		float rarity = rarityChecker.CheckRarityPickpocket(pickpocketName, itemId, itemManager);
+
+		if (rarity >= 0)
+		{
+			queueScreenshot();
+			return queueLootNotification(getPlayerName(), getPlayerIconUrl(), itemId, quantity, rarity, -1, -1, null,
+					pickpocketName, config.webhookUrl()).thenApply(_v -> true);
 		}
 		return CompletableFuture.completedFuture(false);
 	}
