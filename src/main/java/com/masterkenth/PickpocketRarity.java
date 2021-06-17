@@ -44,14 +44,17 @@ public enum PickpocketRarity
     private final int itemId;
     private final float rarity;
 
-    public static final ImmutableMap<Integer, Float> PICKPOCKET_TABLE_MAPPING = initPickpocketMapping();
+    public static final ImmutableMap<Integer, RarityItemData> PICKPOCKET_TABLE_MAPPING = initPickpocketMapping();
 
-    private static ImmutableMap<Integer, Float> initPickpocketMapping()
+    private static ImmutableMap<Integer, RarityItemData> initPickpocketMapping()
     {
-        ImmutableMap.Builder<Integer, Float> builder = new ImmutableMap.Builder<>();
+        ImmutableMap.Builder<Integer, RarityItemData> builder = new ImmutableMap.Builder<>();
         for (PickpocketRarity r : values())
         {
-            builder.put(r.itemId, r.rarity);
+            RarityItemData data = new RarityItemData();
+            data.Unique = true;
+            data.Rarity = r.rarity;
+            builder.put(r.itemId, data);
         }
 
         return builder.build();

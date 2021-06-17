@@ -74,6 +74,16 @@ public interface DiscordRareDropNotificaterConfig extends Config
 		return false;
 	}
 
+	@ConfigItem(
+			keyName = "eventuniques",
+			name = "Always show uniques from events?",
+			description = "Whether drops that are marked unique from events should always get posted (COX, TOB, ...)"
+	)
+	default boolean sendUniques()
+	{
+		return true;
+	}
+
 	@ConfigItem(keyName = "sendscreenshot", name = "Send Screenshot", description = "Whether to send a screenshot")
 	default boolean sendScreenshot()
 	{

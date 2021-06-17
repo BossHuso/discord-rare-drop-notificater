@@ -147,56 +147,28 @@ public class DiscordRareDropNotificaterPlugin extends Plugin
 		Collection<ItemStack> items = lootReceived.getItems();
 		List<CompletableFuture<Boolean>> futures = new ArrayList<>();
 
-		if (lootReceived.getType() == LootRecordType.EVENT)
+		for (ItemStack item : items)
 		{
-			for (ItemStack item : items)
+			ItemComposition comp = itemManager.getItemComposition(item.getId());
+			if (!shouldBeIgnored(comp.getName()))
 			{
-				ItemComposition comp = itemManager.getItemComposition(item.getId());
-				if (!shouldBeIgnored(comp.getName()))
-				{
-					futures.add(processItemRarityEvent(lootReceived.getName(), item.getId(), item.getQuantity()));
-				}
-			}
-
-			CompletableFuture.allOf(futures.toArray(new CompletableFuture[futures.size()]))
-					.thenAccept(_v -> sendScreenshotIfSupposedTo()).exceptionally(e ->
-			{
-				log.error(String.format("onLootReceived error: %s", e.getMessage()), e);
-				log.error(String.format("event %s items %s", lootReceived.getName(),
-						lootReceived.getItems().stream().map(i -> "" + i.getId()).reduce("", (p, c) -> p + ", " + c)));
-				return null;
-			});
-			if (futures.size() > 0)
-			{
-				CompletableFuture.allOf(futures.toArray(new CompletableFuture[futures.size()]))
-						.thenAccept(_v -> sendScreenshotIfSupposedTo());
+				futures.add(processItemRarity(lootReceived.getType(), lootReceived.getName(), item.getId(), item.getQuantity()));
 			}
 		}
 
-		if (lootReceived.getType() == LootRecordType.PICKPOCKET)
+		CompletableFuture.allOf(futures.toArray(new CompletableFuture[futures.size()]))
+				.thenAccept(_v -> sendScreenshotIfSupposedTo()).exceptionally(e ->
 		{
-			for (ItemStack item : items)
-			{
-				ItemComposition comp = itemManager.getItemComposition(item.getId());
-				if (!shouldBeIgnored(comp.getName()))
-				{
-					futures.add(processItemRarityPickpocket(lootReceived.getName(), item.getId(), item.getQuantity()));
-				}
-			}
+			log.error(String.format("onLootReceived error: %s", e.getMessage()), e);
+			log.error(String.format("event %s items %s", lootReceived.getName(),
+					lootReceived.getItems().stream().map(i -> "" + i.getId()).reduce("", (p, c) -> p + ", " + c)));
+			return null;
+		});
 
+		if (futures.size() > 0)
+		{
 			CompletableFuture.allOf(futures.toArray(new CompletableFuture[futures.size()]))
-					.thenAccept(_v -> sendScreenshotIfSupposedTo()).exceptionally(e ->
-			{
-				log.error(String.format("onLootReceived error: %s", e.getMessage()), e);
-				log.error(String.format("pickpocket %s items %s", lootReceived.getName(),
-						lootReceived.getItems().stream().map(i -> "" + i.getId()).reduce("", (p, c) -> p + ", " + c)));
-				return null;
-			});
-			if (futures.size() > 0)
-			{
-				CompletableFuture.allOf(futures.toArray(new CompletableFuture[futures.size()]))
-						.thenAccept(_v -> sendScreenshotIfSupposedTo());
-			}
+					.thenAccept(_v -> sendScreenshotIfSupposedTo());
 		}
 	}
 
@@ -245,30 +217,31 @@ public class DiscordRareDropNotificaterPlugin extends Plugin
 		return keywords.stream().anyMatch(key -> key.length() > 0 && lowerName.contains(key.toLowerCase()));
 	}
 
-	private CompletableFuture<Boolean> processItemRarityEvent(String eventName, int itemId, int quantity)
+	private CompletableFuture<Boolean> processItemRarity(LootRecordType lootRecordType, String eventName, int itemId, int quantity)
 	{
-		float rarity = rarityChecker.CheckRarityEvent(eventName, itemId, itemManager);
+		RarityItemData itemData = lootRecordType == LootRecordType.PICKPOCKET ? rarityChecker.CheckRarityPickpocket(eventName, itemId, itemManager) : rarityChecker.CheckRarityEvent(eventName, itemId, itemManager);
 
-		if (rarity >= 0)
+		if (meetsRequirements(itemId, quantity, itemData))
 		{
 			queueScreenshot();
-			return queueLootNotification(getPlayerName(), getPlayerIconUrl(), itemId, quantity, rarity, -1, -1, null,
+			return queueLootNotification(getPlayerName(), getPlayerIconUrl(), itemId, quantity, itemData.Rarity, -1, -1, null,
 					eventName, config.webhookUrl()).thenApply(_v -> true);
 		}
 		return CompletableFuture.completedFuture(false);
 	}
 
-	private CompletableFuture<Boolean> processItemRarityPickpocket(String pickpocketName, int itemId, int quantity)
-	{
-		float rarity = rarityChecker.CheckRarityPickpocket(pickpocketName, itemId, itemManager);
-
-		if (rarity >= 0)
-		{
-			queueScreenshot();
-			return queueLootNotification(getPlayerName(), getPlayerIconUrl(), itemId, quantity, rarity, -1, -1, null,
-					pickpocketName, config.webhookUrl()).thenApply(_v -> true);
+	private boolean meetsRequirements(int itemId, int  quantity, RarityItemData itemData){
+		if(config.sendUniques() &&  itemData.Unique){
+			return true;
 		}
-		return CompletableFuture.completedFuture(false);
+
+		int totalGeValue = itemManager.getItemPrice(itemId) * quantity;
+		int totalHaValue = itemManager.getItemComposition(itemId).getHaPrice() * quantity;
+
+		boolean valueMet = totalGeValue >= config.minValue() || totalHaValue >= config.minValue();
+		boolean rarityMet = itemData.Rarity <= (1f / config.minRarity());
+
+		return config.andInsteadOfOr() ? (valueMet && rarityMet) : (valueMet || rarityMet);
 	}
 
 	private CompletableFuture<Boolean> processItemRarityNPC(NPC npc, int itemId, int quantity)
@@ -277,19 +250,13 @@ public class DiscordRareDropNotificaterPlugin extends Plugin
 		int npcCombatLevel = npc.getCombatLevel();
 		String npcName = npc.getName();
 
-		return rarityChecker.CheckRarityNPC(npcId, itemId, itemManager).thenCompose(rarity ->
+		return rarityChecker.CheckRarityNPC(npcId, itemId, itemManager).thenCompose(itemData ->
 		{
-			int totalGeValue = itemManager.getItemPrice(itemId) * quantity;
-			int totalHaValue = itemManager.getItemComposition(itemId).getHaPrice() * quantity;
-
-			boolean valueMet = totalGeValue >= config.minValue() || totalHaValue >= config.minValue();
-			boolean rarityMet = rarity <= (1f / config.minRarity());
-
-			if (config.andInsteadOfOr() ? (valueMet && rarityMet) : (valueMet || rarityMet))
+			if (meetsRequirements(itemId, quantity, itemData))
 			{
 				CompletableFuture<Boolean> f = new CompletableFuture<>();
 				queueScreenshot();
-				queueLootNotification(getPlayerName(), getPlayerIconUrl(), itemId, quantity, rarity, npcId, npcCombatLevel,
+				queueLootNotification(getPlayerName(), getPlayerIconUrl(), itemId, quantity, itemData.Rarity, npcId, npcCombatLevel,
 						npcName, null, config.webhookUrl()).handle((_v, e) ->
 						{
 							if (e != null)

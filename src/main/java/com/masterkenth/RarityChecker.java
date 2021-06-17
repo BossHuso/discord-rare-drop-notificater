@@ -31,6 +31,7 @@ import java.util.concurrent.CompletableFuture;
 import java.util.Collection;
 import java.util.Map;
 
+import net.runelite.api.ItemComposition;
 import org.json.JSONArray;
 import org.json.JSONObject;
 
@@ -41,10 +42,11 @@ import net.runelite.client.game.ItemVariationMapping;
 @Slf4j
 public class RarityChecker
 {
-  public float CheckRarityEvent(String eventName, int itemId, ItemManager itemManager)
+
+  public RarityItemData CheckRarityEvent(String eventName, int itemId, ItemManager itemManager)
   {
     String lowerName = eventName.toLowerCase();
-    Map<Integer, Float> table = EventRarity.EVENT_TABLE_MAPPING.getOrDefault(lowerName, null);
+    Map<Integer, RarityItemData> table = EventRarity.EVENT_TABLE_MAPPING.getOrDefault(lowerName, null);
     if (table != null)
     {
       if (table.containsKey(itemId))
@@ -76,7 +78,7 @@ public class RarityChecker
         }
 
         log.warn(String.format("no rarity for item %d in table '%s'", itemId, eventName));
-        return -1f;
+        return null;
       }
     }
     else
@@ -84,23 +86,23 @@ public class RarityChecker
       log.warn(String.format("No event table for '%s'", eventName));
     }
 
-    return -1f;
+    return null;
   }
 
-  public float CheckRarityPickpocket(String pickpocketName, int itemId, ItemManager itemManager)
+  public RarityItemData CheckRarityPickpocket(String pickpocketName, int itemId, ItemManager itemManager)
   {
-    Float rarity = PickpocketRarity.PICKPOCKET_TABLE_MAPPING.getOrDefault(itemId, null);
-    if (rarity != null)
+    RarityItemData itemData = PickpocketRarity.PICKPOCKET_TABLE_MAPPING.getOrDefault(itemId, null);
+    if (itemData != null)
     {
-      return rarity;
+      return itemData;
     }
 
-    return -1f;
+    return null;
   }
 
-  public CompletableFuture<Float> CheckRarityNPC(int npcId, int itemId, ItemManager itemManager)
+  public CompletableFuture<RarityItemData> CheckRarityNPC(int npcId, int itemId, ItemManager itemManager)
   {
-    CompletableFuture<Float> f = new CompletableFuture<>();
+    CompletableFuture<RarityItemData> f = new CompletableFuture<>();
 
     ApiTool.getInstance().getNPC(npcId).thenAccept(npcJson ->
     {
@@ -109,27 +111,22 @@ public class RarityChecker
         JSONArray drops = npcJson.getJSONArray("drops");
         int mapId = ItemVariationMapping.map(itemId);
         Collection<Integer> idVariations = ItemVariationMapping.getVariations(mapId);
-        String origName = itemManager.getItemComposition(itemId).getName();
+        ItemComposition ic = itemManager.getItemComposition(itemId);
+        String origName = ic.getName();
 
         for (int i = 0; i < drops.length(); i++)
         {
           JSONObject drop = drops.getJSONObject(i);
           int dropId = drop.getInt("id");
 
-          if (dropId == itemId)
-          {
-            float rarity = drop.getFloat("rarity");
-            f.complete(rarity);
-            return;
-          }
-          else if (idVariations.contains(dropId))
+          boolean CanComplete = dropId == itemId;
+
+          if (idVariations.contains(dropId))
           {
             String variationName = itemManager.getItemComposition(dropId).getName();
             if (origName.equals(variationName))
             {
-              float rarity = drop.getFloat("rarity");
-              f.complete(rarity);
-              return;
+              CanComplete = true;
             }
             else
             {
@@ -137,9 +134,18 @@ public class RarityChecker
                   dropId, npcId, origName, variationName));
             }
           }
+
+          if (CanComplete)
+          {
+            RarityItemData data = new RarityItemData();
+            data.Rarity = drop.getFloat("rarity");
+            data.Unique = false; // TODO
+            f.complete(data);
+            return;
+          }
         }
         // No entry for item, default to 100% drop
-        f.complete(1.0f);
+        f.complete(null);
       }
       catch (Exception e)
       {
