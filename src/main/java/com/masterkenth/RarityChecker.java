@@ -27,22 +27,17 @@
  */
 package com.masterkenth;
 
+import java.util.Collection;
 import java.util.HashMap;
 import java.util.HashSet;
-import java.util.concurrent.CompletableFuture;
-import java.util.Collection;
 import java.util.Map;
-
-import net.runelite.api.ItemComposition;
-import net.runelite.client.callback.ClientThread;
-import org.json.JSONArray;
-import org.json.JSONObject;
-
+import java.util.concurrent.CompletableFuture;
 import lombok.extern.slf4j.Slf4j;
+import net.runelite.api.ItemComposition;
 import net.runelite.client.game.ItemManager;
 import net.runelite.client.game.ItemVariationMapping;
-
-import javax.inject.Inject;
+import org.json.JSONArray;
+import org.json.JSONObject;
 
 @Slf4j
 public class RarityChecker

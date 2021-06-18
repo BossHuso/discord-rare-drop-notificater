@@ -27,11 +27,9 @@
  */
 package com.masterkenth;
 
+import com.google.common.collect.ImmutableMap;
 import java.util.HashMap;
 import java.util.Map;
-
-import com.google.common.collect.ImmutableMap;
-
 import lombok.AllArgsConstructor;
 import net.runelite.api.ItemID;
 

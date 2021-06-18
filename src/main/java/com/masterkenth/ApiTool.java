@@ -27,29 +27,25 @@
  */
 package com.masterkenth;
 
+import java.io.File;
+import java.io.IOException;
+import java.util.concurrent.CompletableFuture;
+import net.runelite.client.RuneLite;
+import okhttp3.Cache;
+import okhttp3.Call;
+import okhttp3.Callback;
+import okhttp3.HttpUrl;
+import okhttp3.MediaType;
+import okhttp3.MultipartBody;
+import okhttp3.OkHttpClient;
+import okhttp3.Request;
+import okhttp3.RequestBody;
+import okhttp3.Response;
+import okhttp3.ResponseBody;
 import org.json.JSONObject;
 import org.jsoup.Jsoup;
 import org.jsoup.nodes.Document;
 import org.jsoup.nodes.Element;
-
-import net.runelite.client.RuneLite;
-
-import java.io.IOException;
-import java.io.File;
-
-import java.util.concurrent.CompletableFuture;
-
-import okhttp3.HttpUrl;
-import okhttp3.OkHttpClient;
-import okhttp3.Request;
-import okhttp3.Response;
-import okhttp3.ResponseBody;
-import okhttp3.Cache;
-import okhttp3.Call;
-import okhttp3.Callback;
-import okhttp3.RequestBody;
-import okhttp3.MediaType;
-import okhttp3.MultipartBody;
 
 public class ApiTool
 {

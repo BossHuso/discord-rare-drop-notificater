@@ -29,44 +29,42 @@ package com.masterkenth;
 
 import com.google.common.collect.ImmutableList;
 import com.google.inject.Provides;
-import com.masterkenth.discord.Embed;
 import com.masterkenth.discord.Author;
+import com.masterkenth.discord.Embed;
 import com.masterkenth.discord.Field;
 import com.masterkenth.discord.Image;
 import com.masterkenth.discord.Webhook;
-
-import net.runelite.api.ChatMessageType;
-import net.runelite.client.callback.ClientThread;
-import org.json.JSONObject;
-import java.util.List;
+import java.awt.image.BufferedImage;
+import java.io.ByteArrayOutputStream;
+import java.text.NumberFormat;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
+import java.util.List;
 import java.util.Locale;
 import java.util.concurrent.CompletableFuture;
 import java.util.stream.Collectors;
-import java.io.ByteArrayOutputStream;
-import java.text.NumberFormat;
-import java.awt.image.BufferedImage;
-
 import javax.imageio.ImageIO;
 import javax.inject.Inject;
 import lombok.extern.slf4j.Slf4j;
+import net.runelite.api.ChatMessageType;
 import net.runelite.api.Client;
 import net.runelite.api.ItemComposition;
 import net.runelite.api.NPC;
 import net.runelite.api.events.ChatMessage;
+import net.runelite.client.callback.ClientThread;
 import net.runelite.client.config.ConfigManager;
 import net.runelite.client.eventbus.Subscribe;
 import net.runelite.client.events.NpcLootReceived;
+import net.runelite.client.game.ItemManager;
+import net.runelite.client.game.ItemStack;
 import net.runelite.client.plugins.Plugin;
 import net.runelite.client.plugins.PluginDescriptor;
 import net.runelite.client.plugins.loottracker.LootReceived;
 import net.runelite.client.ui.DrawManager;
-import net.runelite.client.game.ItemManager;
-import net.runelite.client.game.ItemStack;
 import net.runelite.http.api.loottracker.LootRecordType;
 import okhttp3.HttpUrl;
+import org.json.JSONObject;
 
 @Slf4j
 @PluginDescriptor(
@@ -511,7 +509,6 @@ public class DiscordRareDropNotificaterPlugin extends Plugin
 	}
 
 	// TODO: Add Pet notification
-
 	private CompletableFuture<String> getLootNotificationDescription(int itemId, int quantity, int npcId,
 																	 int npcCombatLevel, String npcName, String eventName)
 	{

@@ -27,9 +27,9 @@
  */
 package com.masterkenth;
 
+import com.google.common.collect.ImmutableMap;
 import lombok.AllArgsConstructor;
 import net.runelite.api.ItemID;
-import com.google.common.collect.ImmutableMap;
 
 // All rarity data have been manually scraped from osrs wiki
 // Data set only contain (subjectively) rare drops so that if a drop matches against a pickpocket it is always posted to Discord
