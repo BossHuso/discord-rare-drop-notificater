@@ -229,7 +229,7 @@ public class DiscordRareDropNotificaterPlugin extends Plugin
 		if (meetsRequirements(itemData, quantity))
 		{
 			queueScreenshot();
-			clientThread.invoke(() -> {
+			clientThread.invokeLater(() -> {
 				queueLootNotification(getPlayerName(), getPlayerIconUrl(), itemId, quantity, itemData.Rarity, -1, -1, null,
 					eventName, config.webhookUrl()).thenApply(_v -> true);
 			});
@@ -279,7 +279,7 @@ public class DiscordRareDropNotificaterPlugin extends Plugin
 			{
 				CompletableFuture<Boolean> f = new CompletableFuture<>();
 				queueScreenshot();
-				clientThread.invoke(() -> {
+				clientThread.invokeLater(() -> {
 					queueLootNotification(getPlayerName(), getPlayerIconUrl(), itemId, quantity, itemData.Rarity, npcId, npcCombatLevel,
 						npcName, null, config.webhookUrl()).handle((_v, e) ->
 					{
