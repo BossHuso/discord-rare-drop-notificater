@@ -36,6 +36,7 @@ import com.masterkenth.discord.Image;
 import com.masterkenth.discord.Webhook;
 
 import net.runelite.api.ChatMessageType;
+import net.runelite.client.callback.ClientThread;
 import org.json.JSONObject;
 import java.util.List;
 import java.util.ArrayList;
@@ -82,6 +83,10 @@ public class DiscordRareDropNotificaterPlugin extends Plugin
 
 	@Inject
 	private Client client;
+
+
+	@Inject
+	private ClientThread clientThread;
 
 	@Inject
 	private DiscordRareDropNotificaterConfig config;
@@ -219,29 +224,44 @@ public class DiscordRareDropNotificaterPlugin extends Plugin
 
 	private CompletableFuture<Boolean> processItemRarity(LootRecordType lootRecordType, String eventName, int itemId, int quantity)
 	{
-		RarityItemData itemData = lootRecordType == LootRecordType.PICKPOCKET ? rarityChecker.CheckRarityPickpocket(eventName, itemId, itemManager) : rarityChecker.CheckRarityEvent(eventName, itemId, itemManager);
+		ItemComposition item = itemManager.getItemComposition(itemId);
+		ItemData itemData = lootRecordType == LootRecordType.PICKPOCKET ? rarityChecker.CheckRarityPickpocket(eventName, EnrichItem(itemId), itemManager) : rarityChecker.CheckRarityEvent(eventName, EnrichItem(itemId), itemManager);
 
-		if (meetsRequirements(itemId, quantity, itemData))
+		if (meetsRequirements(itemData, quantity))
 		{
 			queueScreenshot();
-			return queueLootNotification(getPlayerName(), getPlayerIconUrl(), itemId, quantity, itemData.Rarity, -1, -1, null,
-					eventName, config.webhookUrl()).thenApply(_v -> true);
+			clientThread.invoke(()->{
+				queueLootNotification(getPlayerName(), getPlayerIconUrl(), itemId, quantity, itemData.Rarity, -1, -1, null,
+						eventName, config.webhookUrl()).thenApply(_v -> true);
+			});
 		}
 		return CompletableFuture.completedFuture(false);
 	}
 
-	private boolean meetsRequirements(int itemId, int  quantity, RarityItemData itemData){
-		if(config.sendUniques() &&  itemData.Unique){
+	private boolean meetsRequirements(ItemData item, int quantity){
+		if(item == null) {
+			return false;
+		}
+
+		if(config.sendUniques() &&  item.Unique){
 			return true;
 		}
 
-		int totalGeValue = itemManager.getItemPrice(itemId) * quantity;
-		int totalHaValue = itemManager.getItemComposition(itemId).getHaPrice() * quantity;
+		int totalGeValue = item.GePrice * quantity;
+		int totalHaValue = item.HaPrice * quantity;
 
 		boolean valueMet = totalGeValue >= config.minValue() || totalHaValue >= config.minValue();
-		boolean rarityMet = itemData.Rarity <= (1f / config.minRarity());
+		boolean rarityMet = item.Rarity <= (1f / config.minRarity());
 
 		return config.andInsteadOfOr() ? (valueMet && rarityMet) : (valueMet || rarityMet);
+	}
+
+	private ItemData EnrichItem(int itemId){
+		ItemData r = new ItemData();
+		r.ItemId = itemId;
+		r.GePrice = itemManager.getItemPrice(itemId);
+		r.HaPrice = itemManager.getItemComposition(itemId).getHaPrice();
+		return r;
 	}
 
 	private CompletableFuture<Boolean> processItemRarityNPC(NPC npc, int itemId, int quantity)
@@ -250,25 +270,28 @@ public class DiscordRareDropNotificaterPlugin extends Plugin
 		int npcCombatLevel = npc.getCombatLevel();
 		String npcName = npc.getName();
 
-		return rarityChecker.CheckRarityNPC(npcId, itemId, itemManager).thenCompose(itemData ->
+		return rarityChecker.CheckRarityNPC(npcId, EnrichItem(itemId), itemManager).thenCompose(itemData ->
 		{
-			if (meetsRequirements(itemId, quantity, itemData))
+			if (meetsRequirements(itemData, quantity))
 			{
 				CompletableFuture<Boolean> f = new CompletableFuture<>();
 				queueScreenshot();
-				queueLootNotification(getPlayerName(), getPlayerIconUrl(), itemId, quantity, itemData.Rarity, npcId, npcCombatLevel,
-						npcName, null, config.webhookUrl()).handle((_v, e) ->
+				clientThread.invoke(()->{
+					queueLootNotification(getPlayerName(), getPlayerIconUrl(), itemId, quantity, itemData.Rarity, npcId, npcCombatLevel,
+							npcName, null, config.webhookUrl()).handle((_v, e) ->
+					{
+						if (e != null)
 						{
-							if (e != null)
-							{
-								f.completeExceptionally(e);
-							}
-							else
-							{
-								f.complete(true);
-							}
-							return null;
-						});
+							f.completeExceptionally(e);
+						}
+						else
+						{
+							f.complete(true);
+						}
+						return null;
+					});
+				});
+
 				return f;
 			}
 			else

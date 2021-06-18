@@ -27,11 +27,14 @@
  */
 package com.masterkenth;
 
+import java.util.HashMap;
+import java.util.HashSet;
 import java.util.concurrent.CompletableFuture;
 import java.util.Collection;
 import java.util.Map;
 
 import net.runelite.api.ItemComposition;
+import net.runelite.client.callback.ClientThread;
 import org.json.JSONArray;
 import org.json.JSONObject;
 
@@ -39,26 +42,29 @@ import lombok.extern.slf4j.Slf4j;
 import net.runelite.client.game.ItemManager;
 import net.runelite.client.game.ItemVariationMapping;
 
+import javax.inject.Inject;
+
 @Slf4j
 public class RarityChecker
 {
 
-  public RarityItemData CheckRarityEvent(String eventName, int itemId, ItemManager itemManager)
+  public ItemData CheckRarityEvent(String eventName, ItemData item, ItemManager itemManager)
   {
     String lowerName = eventName.toLowerCase();
     Map<Integer, RarityItemData> table = EventRarity.EVENT_TABLE_MAPPING.getOrDefault(lowerName, null);
+    RarityItemData rarityInfo = null;
     if (table != null)
     {
-      if (table.containsKey(itemId))
+      if (table.containsKey(item.ItemId))
       {
-        return table.get(itemId);
+        rarityInfo = table.get(item.ItemId);
       }
       else
       {
-        int mapId = ItemVariationMapping.map(itemId);
+        int mapId = ItemVariationMapping.map(item.ItemId);
         Collection<Integer> idVariations = ItemVariationMapping.getVariations(mapId);
 
-        String origName = itemManager.getItemComposition(itemId).getName();
+        String origName = itemManager.getItemComposition(item.ItemId).getName();
 
         for (Integer id : idVariations)
         {
@@ -67,18 +73,24 @@ public class RarityChecker
             String variationName = itemManager.getItemComposition(id).getName();
             if (origName.equals(variationName))
             {
-              return table.get(id);
+               rarityInfo = table.get(item.ItemId);
+               break;
             }
             else
             {
-              log.warn(String.format("item id %d=%d found in table '%s' but other name ('%s' vs '%s')", itemId, id,
+              log.warn(String.format("item id %d=%d found in table '%s' but other name ('%s' vs '%s')", item.ItemId, id,
                   eventName, origName, variationName));
             }
           }
         }
 
-        log.warn(String.format("no rarity for item %d in table '%s'", itemId, eventName));
-        return null;
+        if(rarityInfo !=null) {
+          item.Unique = rarityInfo.Unique;
+          item.Rarity = rarityInfo.Rarity;
+        }else {
+          log.warn(String.format("no rarity for item %d in table '%s'", item.ItemId, eventName));
+        }
+        return item;
       }
     }
     else
@@ -89,61 +101,62 @@ public class RarityChecker
     return null;
   }
 
-  public RarityItemData CheckRarityPickpocket(String pickpocketName, int itemId, ItemManager itemManager)
+  public ItemData CheckRarityPickpocket(String pickpocketName, ItemData item, ItemManager itemManager)
   {
-    RarityItemData itemData = PickpocketRarity.PICKPOCKET_TABLE_MAPPING.getOrDefault(itemId, null);
+    RarityItemData itemData = PickpocketRarity.PICKPOCKET_TABLE_MAPPING.getOrDefault(item.ItemId, null);
     if (itemData != null)
     {
-      return itemData;
+      item.Rarity = itemData.Rarity;
+      item.Unique = itemData.Unique;
     }
 
-    return null;
+    return item;
   }
 
-  public CompletableFuture<RarityItemData> CheckRarityNPC(int npcId, int itemId, ItemManager itemManager)
+  public CompletableFuture<ItemData> CheckRarityNPC(int npcId, ItemData itemData, ItemManager itemManager)
   {
-    CompletableFuture<RarityItemData> f = new CompletableFuture<>();
+    CompletableFuture<ItemData> f = new CompletableFuture<>();
+
+    // Call this before the API call so we're in the main clients thread.
+    ItemComposition ic = itemManager.getItemComposition(itemData.ItemId);
+    String origName = ic.getName();
+    int mapId = ItemVariationMapping.map(itemData.ItemId);
+    Collection<Integer> idVariations = new HashSet<Integer>();
+    idVariations.add(itemData.ItemId); // First item, will be resolved first.
+
+    // Map all ids
+    for ( Integer id : ItemVariationMapping.getVariations(mapId)) {
+      String variationName = itemManager.getItemComposition(id).getName();
+      if (origName.equals(variationName))
+      {
+        idVariations.add(id);
+      }
+    }
 
     ApiTool.getInstance().getNPC(npcId).thenAccept(npcJson ->
     {
       try
       {
         JSONArray drops = npcJson.getJSONArray("drops");
-        int mapId = ItemVariationMapping.map(itemId);
-        Collection<Integer> idVariations = ItemVariationMapping.getVariations(mapId);
-        ItemComposition ic = itemManager.getItemComposition(itemId);
-        String origName = ic.getName();
+        HashMap<Integer, JSONObject> jsonObjects = new HashMap<>();
 
         for (int i = 0; i < drops.length(); i++)
         {
           JSONObject drop = drops.getJSONObject(i);
           int dropId = drop.getInt("id");
+          jsonObjects.put(dropId, drop);
+        }
 
-          boolean CanComplete = dropId == itemId;
-
-          if (idVariations.contains(dropId))
-          {
-            String variationName = itemManager.getItemComposition(dropId).getName();
-            if (origName.equals(variationName))
-            {
-              CanComplete = true;
-            }
-            else
-            {
-              log.warn(String.format("item id %d=%d found in npc %d drops but other name ('%s' vs '%s')", itemId,
-                  dropId, npcId, origName, variationName));
-            }
-          }
-
-          if (CanComplete)
-          {
-            RarityItemData data = new RarityItemData();
-            data.Rarity = drop.getFloat("rarity");
-            data.Unique = false; // TODO
-            f.complete(data);
+        for (Integer id : idVariations){
+          if(jsonObjects.containsKey(id)){
+            JSONObject drop = jsonObjects.get(id);
+            itemData.Rarity = drop.getFloat("rarity");
+            itemData.Unique = false;
+            f.complete(itemData);
             return;
           }
         }
+
         // No entry for item, default to 100% drop
         f.complete(null);
       }
