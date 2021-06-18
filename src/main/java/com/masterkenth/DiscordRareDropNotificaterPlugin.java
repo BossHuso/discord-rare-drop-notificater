@@ -84,7 +84,6 @@ public class DiscordRareDropNotificaterPlugin extends Plugin
 	@Inject
 	private Client client;
 
-
 	@Inject
 	private ClientThread clientThread;
 
@@ -595,7 +594,7 @@ public class DiscordRareDropNotificaterPlugin extends Plugin
 
 	private List<String> getWebhookUrls()
 	{
-		return Arrays.asList(config.webhookUrl().split("\n")).stream().filter(u -> u.length() > 0)
+		return Arrays.asList(config.webhookUrl().split("\n")).stream().filter(u -> u.length() > 0).map(u -> u.trim())
 			.collect(Collectors.toList());
 	}
 }
