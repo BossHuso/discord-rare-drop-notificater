@@ -6,6 +6,6 @@ public class ItemData
 	public Integer GePrice;
 	public int HaPrice;
 
-	public float Rarity;
-	public boolean Unique;
+	public float Rarity = 1f;
+	public boolean Unique = false;
 }

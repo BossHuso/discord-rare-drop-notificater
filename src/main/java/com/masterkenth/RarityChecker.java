@@ -78,25 +78,22 @@ public class RarityChecker
 						}
 					}
 				}
-
-				if (rarityInfo != null)
-				{
-					item.Unique = rarityInfo.Unique;
-					item.Rarity = rarityInfo.Rarity;
-				}
-				else
-				{
-					log.warn(String.format("no rarity for item %d in table '%s'", item.ItemId, eventName));
-				}
-				return item;
 			}
 		}
 		else
 		{
 			log.warn(String.format("No event table for '%s'", eventName));
 		}
-
-		return null;
+		if (rarityInfo != null)
+		{
+			item.Unique = rarityInfo.Unique;
+			item.Rarity = rarityInfo.Rarity;
+		}
+		else
+		{
+			log.warn(String.format("no rarity for item %d in table '%s'", item.ItemId, eventName));
+		}
+		return item;
 	}
 
 	public ItemData CheckRarityPickpocket(String pickpocketName, ItemData item, ItemManager itemManager)

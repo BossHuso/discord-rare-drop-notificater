@@ -71,15 +71,6 @@ public class ApiTool
 
 	public CompletableFuture<JSONObject> getNPC(int npcId)
 	{
-  	/*
-  		Temp fix for Alchemical Hydra drops
-  		See https://github.com/osrsbox/osrsbox-db/issues/208
-  	*/
-		if (npcId == 8622 || npcId == 8634)
-		{
-			npcId = 8621;
-		}
-
 		HttpUrl url = new HttpUrl.Builder().scheme("https").host(API_ROOT).addPathSegment(API_PATH_NPCS)
 			.addPathSegment("" + npcId).build();
 

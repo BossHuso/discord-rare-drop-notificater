@@ -221,7 +221,6 @@ public class DiscordRareDropNotificaterPlugin extends Plugin
 
 	private CompletableFuture<Boolean> processItemRarity(LootRecordType lootRecordType, String eventName, int itemId, int quantity)
 	{
-		ItemComposition item = itemManager.getItemComposition(itemId);
 		ItemData itemData = lootRecordType == LootRecordType.PICKPOCKET ? rarityChecker.CheckRarityPickpocket(eventName, EnrichItem(itemId), itemManager) : rarityChecker.CheckRarityEvent(eventName, EnrichItem(itemId), itemManager);
 
 		if (meetsRequirements(itemData, quantity))
