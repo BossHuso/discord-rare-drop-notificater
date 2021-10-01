@@ -99,4 +99,12 @@ public interface DiscordRareDropNotificaterConfig extends Config
 	{
 		return "grimy,seed";
 	}
+
+	@ConfigItem(
+		keyName = "whiteListedItems",
+		name = "Whitelisted Items",
+		description = "Items which you want notified regardless of the ignored keywords."
+	)
+	default String whiteListedItems() { return "enhanced crystal weapon seed,crystal armour seed"; }
+	
 }

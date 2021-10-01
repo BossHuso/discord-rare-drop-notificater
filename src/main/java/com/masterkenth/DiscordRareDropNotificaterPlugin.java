@@ -215,8 +215,11 @@ public class DiscordRareDropNotificaterPlugin extends Plugin
 	private boolean shouldBeIgnored(String itemName)
 	{
 		String lowerName = itemName.toLowerCase();
+		List<String> whiteListedItems = Arrays.asList(config.whiteListedItems().split(","));
 		List<String> keywords = Arrays.asList(config.ignoredKeywords().split(","));
-		return keywords.stream().anyMatch(key -> key.length() > 0 && lowerName.contains(key.toLowerCase()));
+
+		return whiteListedItems.stream().noneMatch(item -> item.length() > 0 && lowerName.equals(item.toLowerCase()))
+				&& keywords.stream().anyMatch(key -> key.length() > 0 && lowerName.contains(key.toLowerCase()));
 	}
 
 	private CompletableFuture<Boolean> processItemRarity(LootRecordType lootRecordType, String eventName, int itemId, int quantity)
