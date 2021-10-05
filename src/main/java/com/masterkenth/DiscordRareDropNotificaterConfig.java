@@ -30,14 +30,45 @@ package com.masterkenth;
 import net.runelite.client.config.Config;
 import net.runelite.client.config.ConfigGroup;
 import net.runelite.client.config.ConfigItem;
+import net.runelite.client.config.ConfigSection;
 
 @ConfigGroup("discordraredropnotificater")
 public interface DiscordRareDropNotificaterConfig extends Config
 {
+	@ConfigSection(
+			position = 1,
+			name = "Webhook Options",
+			description = "Manage how the plugin sends drops to your discord server"
+	)
+	String webhookOptionsSection = "webhookOptionsSection";
+
+	@ConfigSection(
+			position = 2,
+			name = "Item Lists",
+			description = "Ignored and whitelisted items"
+	)
+	String itemListsSection = "itemListsSection";
+
+	@ConfigSection(
+			position = 3,
+			name = "Item Filters",
+			description = "Manage filters that handle if drop should be posted or not"
+	)
+	String itemFiltersSection = "itemFiltersSection";
+
+	@ConfigSection(
+			position = 4,
+			name = "Player Filters",
+			description = "Manage filters to prevent drops being posted from all your accounts"
+	)
+	String playerFiltersSection = "playerFiltersSection";
+
 	@ConfigItem(
 		keyName = "webhookurl",
 		name = "Discord webhook URL(s)",
-		description = "The Discord Webhook URL(s) to use, separated by newline"
+		description = "The Discord Webhook URL(s) to use, separated by newline",
+		section = webhookOptionsSection,
+		position = 1
 	)
 	default String webhookUrl()
 	{
@@ -47,7 +78,9 @@ public interface DiscordRareDropNotificaterConfig extends Config
 	@ConfigItem(
 		keyName = "minrarity",
 		name = "Min NPC Rarity (1/x)",
-		description = "NPC drops more rare than this are posted to Discord"
+		description = "NPC drops more rare than this are posted to Discord",
+		section = itemFiltersSection,
+		position = 1
 	)
 	default int minRarity()
 	{
@@ -57,7 +90,9 @@ public interface DiscordRareDropNotificaterConfig extends Config
 	@ConfigItem(
 		keyName = "minvalue",
 		name = "Min NPC Value",
-		description = "NPC drops more valuable (GE or HA) than this are posted to Discord"
+		description = "NPC drops more valuable (GE or HA) than this are posted to Discord",
+		section = itemFiltersSection,
+		position = 2
 	)
 	default int minValue()
 	{
@@ -67,7 +102,9 @@ public interface DiscordRareDropNotificaterConfig extends Config
 	@ConfigItem(
 		keyName = "andinsteadofor",
 		name = "Require both rarity and value",
-		description = "Whether drops should meet both rarity AND value requirements to get posted"
+		description = "Whether drops should meet both rarity AND value requirements to get posted",
+		section = itemFiltersSection,
+		position = 3
 	)
 	default boolean andInsteadOfOr()
 	{
@@ -76,15 +113,23 @@ public interface DiscordRareDropNotificaterConfig extends Config
 
 	@ConfigItem(
 		keyName = "eventuniques",
-		name = "Always show uniques from events?",
-		description = "Whether drops that are marked unique from events should always get posted (COX, TOB, ...)"
+		name = "Always send uniques (events)",
+		description = "Whether unique drops from events should always get posted (COX, TOB, ...)",
+		section = itemFiltersSection,
+		position = 4
 	)
 	default boolean sendUniques()
 	{
 		return true;
 	}
 
-	@ConfigItem(keyName = "sendscreenshot", name = "Send Screenshot", description = "Whether to send a screenshot")
+	@ConfigItem(
+			keyName = "sendscreenshot",
+			name = "Send screenshot",
+			description = "Whether to send a screenshot along with the message",
+			section = webhookOptionsSection,
+			position = 4
+	)
 	default boolean sendScreenshot()
 	{
 		return true;
@@ -92,8 +137,10 @@ public interface DiscordRareDropNotificaterConfig extends Config
 
 	@ConfigItem(
 		keyName = "ignoredkeywords",
-		name = "Ignored Keywords",
-		description = "(NPC drops only) comma-separated list of keywords in item name for items to ignore"
+		name = "Ignored items",
+		description = "Comma-separated list of items to ignore, keywords are allowed as well",
+		section = itemListsSection,
+		position = 1
 	)
 	default String ignoredKeywords()
 	{
@@ -102,9 +149,43 @@ public interface DiscordRareDropNotificaterConfig extends Config
 
 	@ConfigItem(
 		keyName = "whiteListedItems",
-		name = "Whitelisted Items",
-		description = "(NPC drops only) comma-separated list of items which you want notifications for regardless of the ignored keywords."
+		name = "Whitelisted items",
+		description = "Comma-separated list of items which you want notifications for regardless of the ignored keywords",
+		section = itemListsSection,
+		position = 2
 	)
 	default String whiteListedItems() { return "enhanced crystal weapon seed,crystal armour seed"; }
-	
+
+	@ConfigItem(
+			keyName = "whiteListedRSNs",
+			name = "Whitelisted RSNs",
+			description = "(optional) Comma-separated list of RSNs which are allowed to post to the webhook",
+			section = playerFiltersSection,
+			position = 1
+	)
+	default String whiteListedRSNs() { return ""; }
+
+	@ConfigItem(
+			keyName = "sendEmbeddedMessage",
+			name = "Send embedded message",
+			description = "Whether to send a embedded Discord message",
+			section = webhookOptionsSection,
+			position = 2
+	)
+	default boolean sendEmbeddedMessage()
+	{
+		return true;
+	}
+
+	@ConfigItem(
+			keyName = "sendRarityAndValue",
+			name = "Send rarity and value",
+			description = "Whether to send Rarity and Value within the embedded Discord message",
+			section = webhookOptionsSection,
+			position = 3
+	)
+	default boolean sendRarityAndValue()
+	{
+		return true;
+	}
 }

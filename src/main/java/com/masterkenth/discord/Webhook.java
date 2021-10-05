@@ -37,4 +37,8 @@ public class Webhook extends Object
 	@Getter
 	@Setter
 	private Embed[] embeds;
+
+	@Getter
+	@Setter
+	private String content;
 }

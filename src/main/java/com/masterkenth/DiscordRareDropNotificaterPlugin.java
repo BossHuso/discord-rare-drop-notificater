@@ -43,6 +43,7 @@ import java.util.Collection;
 import java.util.List;
 import java.util.Locale;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.atomic.AtomicReference;
 import java.util.stream.Collectors;
 import javax.imageio.ImageIO;
 import javax.inject.Inject;
@@ -107,6 +108,8 @@ public class DiscordRareDropNotificaterPlugin extends Plugin
 	@Subscribe
 	public void onNpcLootReceived(NpcLootReceived npcLootReceived)
 	{
+		if(isPlayerIgnored()) return;
+
 		NPC npc = npcLootReceived.getNpc();
 		Collection<ItemStack> items = npcLootReceived.getItems();
 
@@ -139,6 +142,8 @@ public class DiscordRareDropNotificaterPlugin extends Plugin
 	@Subscribe
 	public void onLootReceived(LootReceived lootReceived)
 	{
+		if(isPlayerIgnored()) return;
+
 		// Only process EVENTS such as Barrows, CoX etc. and PICKPOCKET
 		// For NPCs onNpcLootReceived receives more information and is used instead.
 		if (lootReceived.getType() == LootRecordType.NPC)
@@ -177,6 +182,8 @@ public class DiscordRareDropNotificaterPlugin extends Plugin
 	@Subscribe
 	public void onChatMessage(ChatMessage event)
 	{
+		if(isPlayerIgnored()) return;
+
 		String chatMessage = event.getMessage();
 
 		if (event.getType() != ChatMessageType.GAMEMESSAGE
@@ -210,6 +217,18 @@ public class DiscordRareDropNotificaterPlugin extends Plugin
 					return null;
 				});
 		}
+	}
+
+	private boolean isPlayerIgnored()
+	{
+		if(config.whiteListedRSNs().trim().length() > 0) {
+			String playerName = getPlayerName().toLowerCase();
+			List<String> whiteListedRSNs = Arrays.asList(config.whiteListedRSNs().split(","));
+
+			return whiteListedRSNs.stream().noneMatch(rsn -> rsn.length() > 0 && playerName.equals(rsn.toLowerCase()));
+		}
+
+		return false;
 	}
 
 	private boolean shouldBeIgnored(String itemName)
@@ -333,6 +352,8 @@ public class DiscordRareDropNotificaterPlugin extends Plugin
 	private CompletableFuture<Void> queueLootNotification(String playerName, String playerIconUrl, int itemId,
 														  int quantity, float rarity, int npcId, int npcCombatLevel, String npcName, String eventName, String webhookUrl)
 	{
+		Webhook webhookData = new Webhook();
+
 		Author author = new Author();
 		author.setName(playerName);
 
@@ -341,24 +362,27 @@ public class DiscordRareDropNotificaterPlugin extends Plugin
 			author.setIcon_url(playerIconUrl);
 		}
 
-		Field rarityField = new Field();
-		rarityField.setName("Rarity");
-		rarityField.setValue(getRarityString(rarity));
-		rarityField.setInline(true);
-
-		Field haValueField = new Field();
-		haValueField.setName("HA Value");
-		haValueField.setValue(getGPValueString(itemManager.getItemComposition(itemId).getHaPrice() * quantity));
-		haValueField.setInline(true);
-
-		Field geValueField = new Field();
-		geValueField.setName("GE Value");
-		geValueField.setValue(getGPValueString(itemManager.getItemPrice(itemId) * quantity));
-		geValueField.setInline(true);
-
 		Embed embed = new Embed();
 		embed.setAuthor(author);
-		embed.setFields(new Field[]{rarityField, haValueField, geValueField});
+
+		if(config.sendRarityAndValue()) {
+			Field rarityField = new Field();
+			rarityField.setName("Rarity");
+			rarityField.setValue(getRarityString(rarity));
+			rarityField.setInline(true);
+
+			Field haValueField = new Field();
+			haValueField.setName("HA Value");
+			haValueField.setValue(getGPValueString(itemManager.getItemComposition(itemId).getHaPrice() * quantity));
+			haValueField.setInline(true);
+
+			Field geValueField = new Field();
+			geValueField.setName("GE Value");
+			geValueField.setValue(getGPValueString(itemManager.getItemPrice(itemId) * quantity));
+			geValueField.setInline(true);
+
+			embed.setFields(new Field[]{rarityField, haValueField, geValueField});
+		}
 
 		Image thumbnail = new Image();
 		CompletableFuture<Void> iconFuture = ApiTool.getInstance()
@@ -374,20 +398,23 @@ public class DiscordRareDropNotificaterPlugin extends Plugin
 			});
 
 		CompletableFuture<Void> descFuture = getLootNotificationDescription(itemId, quantity, npcId, npcCombatLevel,
-			npcName, eventName).handle((notifDesc, e) ->
+			npcName, eventName, !config.sendEmbeddedMessage()).handle((notifDesc, e) ->
 		{
 			if (e != null)
 			{
 				log.error(String.format("queueLootNotification (desc %d) error: %s", itemId, e.getMessage()), e);
 			}
 			embed.setDescription(notifDesc);
+			if(!config.sendEmbeddedMessage()) webhookData.setContent("**" + playerName + "** - " + notifDesc);
+
 			return null;
 		});
 
 		return CompletableFuture.allOf(descFuture, iconFuture).thenCompose(_v ->
 		{
-			Webhook webhookData = new Webhook();
-			webhookData.setEmbeds(new Embed[]{embed});
+			if(config.sendEmbeddedMessage()) {
+				webhookData.setEmbeds(new Embed[]{embed});
+			}
 			return sendWebhookData(getWebhookUrls(), webhookData);
 		});
 	}
@@ -512,22 +539,25 @@ public class DiscordRareDropNotificaterPlugin extends Plugin
 
 	// TODO: Add Pet notification
 	private CompletableFuture<String> getLootNotificationDescription(int itemId, int quantity, int npcId,
-																	 int npcCombatLevel, String npcName, String eventName)
+																	 int npcCombatLevel, String npcName, String eventName, boolean plainText)
 	{
 		ItemComposition itemComp = itemManager.getItemComposition(itemId);
 
 		return ApiTool.getInstance().getItem(itemId).thenCompose(itemJson ->
 		{
 			String itemUrl = itemJson.getString("wiki_url");
-			String baseMsg = "Just got " + (quantity > 1 ? quantity + "x " : "") + "[" + itemComp.getName() + "](" + itemUrl
-				+ ")";
+			String baseMsg = (plainText) ?
+					"Just got **" + (quantity > 1 ? quantity + "x " : "") + itemComp.getName() + "**" :
+					"Just got " + (quantity > 1 ? quantity + "x " : "") + "[" + itemComp.getName() + "](" + itemUrl + ")";
 
 			if (npcId >= 0)
 			{
 				return ApiTool.getInstance().getNPC(npcId).thenApply(npcJson ->
 				{
 					String npcUrl = npcJson.getString("wiki_url");
-					String fullMsg = baseMsg + " from lvl " + npcCombatLevel + " [" + npcName + "](" + npcUrl + ")";
+					String fullMsg = (plainText) ?
+							baseMsg + " from lvl " + npcCombatLevel + " **" + npcName + "**" :
+							baseMsg + " from lvl " + npcCombatLevel + " [" + npcName + "](" + npcUrl + ")";
 					return fullMsg;
 				}).exceptionally(e ->
 				{
@@ -539,7 +569,9 @@ public class DiscordRareDropNotificaterPlugin extends Plugin
 			{
 				String eventUrl = HttpUrl.parse("https://oldschool.runescape.wiki/").newBuilder()
 					.addPathSegments("w/Special:Search").addQueryParameter("search", eventName).build().toString();
-				String fullMsg = baseMsg + " from [" + eventName + "](" + eventUrl + ")";
+				String fullMsg = (plainText) ?
+						baseMsg + " from **" + eventName + "**" :
+						baseMsg + " from [" + eventName + "](" + eventUrl + ")";
 				return CompletableFuture.completedFuture(fullMsg);
 			}
 			else
