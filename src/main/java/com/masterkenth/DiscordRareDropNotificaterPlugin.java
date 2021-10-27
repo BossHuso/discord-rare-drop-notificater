@@ -292,7 +292,7 @@ public class DiscordRareDropNotificaterPlugin extends Plugin
 		int npcCombatLevel = npc.getCombatLevel();
 		String npcName = npc.getName();
 
-		return rarityChecker.CheckRarityNPC(npcId, EnrichItem(itemId), itemManager).thenCompose(itemData ->
+		return rarityChecker.CheckRarityNPC(npcId, EnrichItem(itemId), itemManager, quantity).thenCompose(itemData ->
 		{
 			if (meetsRequirements(itemData, quantity))
 			{
