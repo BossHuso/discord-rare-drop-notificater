@@ -108,7 +108,7 @@ public class RarityChecker
 		return item;
 	}
 
-	public CompletableFuture<ItemData> CheckRarityNPC(int npcId, ItemData itemData, ItemManager itemManager)
+	public CompletableFuture<ItemData> CheckRarityNPC(int npcId, ItemData itemData, ItemManager itemManager, int quantity)
 	{
 		CompletableFuture<ItemData> f = new CompletableFuture<>();
 
@@ -149,6 +149,17 @@ public class RarityChecker
 					{
 						JSONObject drop = jsonObjects.get(id);
 						itemData.Rarity = drop.getFloat("rarity");
+						String dropQuantityStr = drop.getString("quantity");
+						try
+						{
+							int dropQuantity = Integer.parseInt(dropQuantityStr);
+							if (dropQuantity != quantity)
+								continue;
+						} catch (Exception ex)
+						{
+							ex.printStackTrace();
+							// Assume it matches;
+						}
 						itemData.Unique = false;
 						f.complete(itemData);
 						return;
