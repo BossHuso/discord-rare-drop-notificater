@@ -150,16 +150,36 @@ public class RarityChecker
 						JSONObject drop = jsonObjects.get(id);
 						itemData.Rarity = drop.getFloat("rarity");
 						String dropQuantityStr = drop.getString("quantity");
-						try
+						String[] quantityParts = dropQuantityStr.split("-");
+						if (quantityParts.length == 2)
 						{
-							int dropQuantity = Integer.parseInt(dropQuantityStr);
-							if (dropQuantity != quantity)
-								continue;
-						} catch (Exception ex)
-						{
-							ex.printStackTrace();
-							// Assume it matches;
+							try
+							{
+								int dropQuantityMin = Integer.parseInt(quantityParts[0]);
+								int dropQuantityMax = Integer.parseInt(quantityParts[1]);
+								if (quantity < dropQuantityMin || quantity > dropQuantityMax)
+									continue;
+							}
+							catch (Exception ex)
+							{
+								ex.printStackTrace();
+								// Assume it matches;
+							}
 						}
+						else
+						{
+							try
+							{
+								int dropQuantity = Integer.parseInt(dropQuantityStr);
+								if (dropQuantity != quantity)
+									continue;
+							} catch (Exception ex)
+							{
+								ex.printStackTrace();
+								// Assume it matches;
+							}
+						}
+
 						itemData.Unique = false;
 						f.complete(itemData);
 						return;
