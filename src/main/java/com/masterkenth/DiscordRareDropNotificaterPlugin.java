@@ -613,11 +613,15 @@ public class DiscordRareDropNotificaterPlugin extends Plugin
 				return "https://oldschool.runescape.wiki/images/b/b8/Hardcore_ironman_chat_badge.png";
 			case ULTIMATE_IRONMAN:
 				return "https://oldschool.runescape.wiki/images/0/02/Ultimate_ironman_chat_badge.png";
+			case GROUP_IRONMAN:
+				return "https://oldschool.runescape.wiki/images/Group_ironman_chat_badge.png";
+			case HARDCORE_GROUP_IRONMAN:
+				return "https://oldschool.runescape.wiki/images/Hardcore_group_ironman_chat_badge.png";
 			default:
 				return null;
 		}
 	}
-
+	
 	private String getPlayerName()
 	{
 		return client.getLocalPlayer().getName();
