@@ -43,8 +43,8 @@ import java.util.Collection;
 import java.util.List;
 import java.util.Locale;
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.atomic.AtomicReference;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
 import javax.imageio.ImageIO;
 import javax.inject.Inject;
 import lombok.extern.slf4j.Slf4j;
@@ -117,7 +117,7 @@ public class DiscordRareDropNotificaterPlugin extends Plugin
 		for (ItemStack item : items)
 		{
 			ItemComposition comp = itemManager.getItemComposition(item.getId());
-			if (!shouldBeIgnored(comp.getName()))
+			if (canBeSent(comp.getName()))
 			{
 				futures.add(processItemRarityNPC(npc, item.getId(), item.getQuantity()));
 			}
@@ -157,7 +157,7 @@ public class DiscordRareDropNotificaterPlugin extends Plugin
 		for (ItemStack item : items)
 		{
 			ItemComposition comp = itemManager.getItemComposition(item.getId());
-			if (!shouldBeIgnored(comp.getName()))
+			if (canBeSent(comp.getName()))
 			{
 				futures.add(processItemRarity(lootReceived.getType(), lootReceived.getName(), item.getId(), item.getQuantity()));
 			}
@@ -231,14 +231,33 @@ public class DiscordRareDropNotificaterPlugin extends Plugin
 		return false;
 	}
 
-	private boolean shouldBeIgnored(String itemName)
+	private boolean canBeSent(String itemName)
 	{
 		String lowerName = itemName.toLowerCase();
-		List<String> whiteListedItems = Arrays.asList(config.whiteListedItems().split(","));
-		List<String> keywords = Arrays.asList(config.ignoredKeywords().split(","));
+		Stream<String> whitelist = Arrays.stream(config.whiteListedItems().split(",")).filter(item -> item.length() > 0).map(String::toLowerCase);
+		Stream<String> blacklist = Arrays.stream(config.ignoredKeywords().split(",")).filter(item -> item.length() > 0).map(String::toLowerCase);
 
-		return whiteListedItems.stream().noneMatch(item -> item.length() > 0 && lowerName.equals(item.toLowerCase()))
-				&& keywords.stream().anyMatch(key -> key.length() > 0 && lowerName.contains(key.toLowerCase()));
+		if(whitelist.anyMatch(lowerName::equals)){
+			// It's an exact match with whitelist
+			// This must be sent
+			return true;
+		}
+
+		if(blacklist.anyMatch(lowerName::equals)){
+			// Exact match with blacklist
+			// must be ignored
+			return false;
+		}
+
+		if(whitelist.anyMatch(lowerName::contains)){
+			// Fuzzy whitelist
+			// is accepted
+			return true;
+		}
+
+		// Fuzzy blacklist
+		// is ignored
+		return blacklist.noneMatch(lowerName::contains);
 	}
 
 	private CompletableFuture<Boolean> processItemRarity(LootRecordType lootRecordType, String eventName, int itemId, int quantity)
