@@ -12,14 +12,14 @@ repositories {
 	mavenCentral()
 }
 
-def runeLiteVersion = '1.7.27'
+def runeLiteVersion = '1.8.7.1'
 
 dependencies {
 	compileOnly group: 'net.runelite', name:'client', version: runeLiteVersion
-	compile group: 'org.json', name: 'json', version: '20200518'
-	compile group: 'org.jsoup', name: 'jsoup', version: '1.13.1'
+    implementation group: 'org.json', name: 'json', version: '20200518'
+    implementation group: 'org.jsoup', name: 'jsoup', version: '1.13.1'
 
-	testImplementation 'junit:junit:4.12'
+	testImplementation 'junit:junit:4.13.2'
 	testImplementation group: 'net.runelite', name:'client', version: runeLiteVersion
 }
 
@@ -31,7 +31,7 @@ idea {
 }
 
 group = 'com.masterkenth'
-version = '1.2.0'
+version = '1.2.1'
 sourceCompatibility = '1.8'
 
 tasks.withType(JavaCompile) {
