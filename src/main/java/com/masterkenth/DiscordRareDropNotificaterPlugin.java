@@ -43,11 +43,15 @@ import java.util.Collection;
 import java.util.List;
 import java.util.Locale;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
+import java.util.function.Supplier;
 import java.util.stream.Collectors;
-import java.util.stream.Stream;
 import javax.imageio.ImageIO;
 import javax.inject.Inject;
 import lombok.extern.slf4j.Slf4j;
+import lombok.var;
 import net.runelite.api.ChatMessageType;
 import net.runelite.api.Client;
 import net.runelite.api.ItemComposition;
@@ -116,10 +120,24 @@ public class DiscordRareDropNotificaterPlugin extends Plugin
 		List<CompletableFuture<Boolean>> futures = new ArrayList<CompletableFuture<Boolean>>();
 		for (ItemStack item : items)
 		{
-			ItemComposition comp = itemManager.getItemComposition(item.getId());
-			if (canBeSent(comp.getName()))
+			// Use a wrapper to 'capture' the lambda value
+			// this way we only need to call the api once.
+			ItemData[] wrapper = new ItemData[1];
+
+			Supplier<ItemData> itemDataSupplier = () -> {
+				wrapper[0] = getNPCLootReceivedItemData(npc.getId(), item.getId(), item.getQuantity());
+				return wrapper[0];
+			};
+
+			if (canBeSent(item.getId(), item.getQuantity(), itemDataSupplier))
 			{
-				futures.add(processItemRarityNPC(npc, item.getId(), item.getQuantity()));
+				if(wrapper[0] == null){
+					// sets the value
+					log.debug("We're setting the wrapper value");
+					itemDataSupplier.get();
+				}
+
+				futures.add(processNpcNotification(npc, item.getId(), item.getQuantity(), wrapper[0].Rarity));
 			}
 		}
 
@@ -156,10 +174,10 @@ public class DiscordRareDropNotificaterPlugin extends Plugin
 
 		for (ItemStack item : items)
 		{
-			ItemComposition comp = itemManager.getItemComposition(item.getId());
-			if (canBeSent(comp.getName()))
+			// Just a simple check and process immediately
+			if (canBeSent(item.getId(), item.getQuantity(), () -> getLootReceivedItemData(lootReceived.getName(), lootReceived.getType(), item.getId())))
 			{
-				futures.add(processItemRarity(lootReceived.getType(), lootReceived.getName(), item.getId(), item.getQuantity()));
+				futures.add(processEventNotification(lootReceived.getType(), lootReceived.getName(), item.getId(), item.getQuantity()));
 			}
 		}
 
@@ -177,6 +195,35 @@ public class DiscordRareDropNotificaterPlugin extends Plugin
 			CompletableFuture.allOf(futures.toArray(new CompletableFuture[futures.size()]))
 				.thenAccept(_v -> sendScreenshotIfSupposedTo());
 		}
+	}
+
+	private ItemData getLootReceivedItemData(String eventName, LootRecordType lootRecordType, int itemId){
+		return lootRecordType == LootRecordType.PICKPOCKET ?
+			rarityChecker.CheckRarityPickpocket(eventName, EnrichItem(itemId), itemManager) :
+			rarityChecker.CheckRarityEvent(eventName, EnrichItem(itemId), itemManager);
+	}
+
+	private ItemData getNPCLootReceivedItemData(int npcId, int itemId, int quantity)
+	{
+		ItemData incomplete = EnrichItem(itemId);
+		
+		List<CompletableFuture<ItemData>> futures = new ArrayList<CompletableFuture<ItemData>>();
+
+		CompletableFuture<ItemData> future = rarityChecker.CheckRarityNPC(npcId, incomplete, itemManager, quantity);
+		futures.add(future);
+
+		CompletableFuture.allOf(futures.toArray(new CompletableFuture[futures.size()])); // we doin it?
+
+		try{
+			return future.get(100, TimeUnit.MILLISECONDS);
+		}
+		catch (ExecutionException | InterruptedException | TimeoutException e)
+		{
+			e.printStackTrace();
+			log.error("Cannot get NPC item rarity", e);
+		}
+
+		return null;
 	}
 
 	@Subscribe
@@ -231,47 +278,96 @@ public class DiscordRareDropNotificaterPlugin extends Plugin
 		return false;
 	}
 
-	private boolean canBeSent(String itemName)
+	private boolean canBeSent(int itemId, int quantity, Supplier<ItemData> itemDataSupplier)
 	{
-		String lowerName = itemName.toLowerCase();
-		Stream<String> whitelist = Arrays.stream(config.whiteListedItems().split(",")).filter(item -> item.length() > 0).map(String::toLowerCase);
-		Stream<String> blacklist = Arrays.stream(config.ignoredKeywords().split(",")).filter(item -> item.length() > 0).map(String::toLowerCase);
+		ItemComposition comp = itemManager.getItemComposition(itemId);
+		String lowerName = comp.getName().toLowerCase();
 
-		if(whitelist.anyMatch(lowerName::equals)){
+		List<String> whitelist = Arrays.stream(config.whiteListedItems()
+			.split(",")).filter(itemName -> itemName.length() > 0)
+			.map(String::toLowerCase).collect(Collectors.toList());
+
+		List<String> blacklist = Arrays.stream(config.ignoredKeywords()
+			.split(",")).filter(itemName -> itemName.length() > 0)
+			.map(String::toLowerCase).collect(Collectors.toList());
+
+		if(log.isDebugEnabled())
+		{
+			log.debug(String.format("Checking if %s can be sent", lowerName));
+		}
+
+		if(whitelist.stream().anyMatch(lowerName::equals)){
 			// It's an exact match with whitelist
 			// This must be sent
+
+			if(log.isDebugEnabled())
+			{
+				log.debug("We're whitelisted. We can be sent");
+			}
+
 			return true;
 		}
 
-		if(blacklist.anyMatch(lowerName::equals)){
+		if(blacklist.stream().anyMatch(lowerName::equals)){
 			// Exact match with blacklist
 			// must be ignored
+
+			if(log.isDebugEnabled())
+			{
+				log.debug("We're blacklisted. We cannot be sent");
+			}
+
 			return false;
 		}
 
-		if(whitelist.anyMatch(lowerName::contains)){
+		if(whitelist.stream().anyMatch(lowerName::contains)){
 			// Fuzzy whitelist
 			// is accepted
+
+			if(log.isDebugEnabled())
+			{
+				log.debug("We're fuzzy whitelisted. We can be sent");
+			}
+
 			return true;
 		}
 
-		// Fuzzy blacklist
-		// is ignored
-		return blacklist.noneMatch(lowerName::contains);
+		if(blacklist.stream().anyMatch(lowerName::contains)){
+			// Fuzzy blacklist
+			// is ignored
+			if(log.isDebugEnabled())
+			{
+				log.debug("We're fuzzy blacklisted. We cannot be sent");
+			}
+
+			return false;
+		}
+
+		if(log.isDebugEnabled())
+		{
+			log.debug("We're not in any item list. We need to continue our check.");
+		}
+
+		ItemData itemData = itemDataSupplier.get();
+
+		if(itemData == null){
+			log.debug("We cannot complete the request since we have no data");
+			return false;
+		}
+
+		return meetsRequirements(itemData, quantity);
 	}
 
-	private CompletableFuture<Boolean> processItemRarity(LootRecordType lootRecordType, String eventName, int itemId, int quantity)
+	private CompletableFuture<Boolean> processEventNotification(LootRecordType lootRecordType, String eventName, int itemId, int quantity)
 	{
 		ItemData itemData = lootRecordType == LootRecordType.PICKPOCKET ? rarityChecker.CheckRarityPickpocket(eventName, EnrichItem(itemId), itemManager) : rarityChecker.CheckRarityEvent(eventName, EnrichItem(itemId), itemManager);
 
-		if (meetsRequirements(itemData, quantity))
-		{
-			queueScreenshot();
-			clientThread.invokeLater(() -> {
-				queueLootNotification(getPlayerName(), getPlayerIconUrl(), itemId, quantity, itemData.Rarity, -1, -1, null,
-					eventName, config.webhookUrl()).thenApply(_v -> true);
-			});
-		}
+		queueScreenshot();
+		clientThread.invokeLater(() -> {
+			queueLootNotification(getPlayerName(), getPlayerIconUrl(), itemId, quantity, itemData.Rarity, -1, -1, null,
+				eventName, config.webhookUrl()).thenApply(_v -> true);
+		});
+
 		return CompletableFuture.completedFuture(false);
 	}
 
@@ -305,41 +401,31 @@ public class DiscordRareDropNotificaterPlugin extends Plugin
 		return r;
 	}
 
-	private CompletableFuture<Boolean> processItemRarityNPC(NPC npc, int itemId, int quantity)
+	private CompletableFuture<Boolean> processNpcNotification(NPC npc, int itemId, int quantity, float rarity)
 	{
 		int npcId = npc.getId();
 		int npcCombatLevel = npc.getCombatLevel();
 		String npcName = npc.getName();
 
-		return rarityChecker.CheckRarityNPC(npcId, EnrichItem(itemId), itemManager, quantity).thenCompose(itemData ->
-		{
-			if (meetsRequirements(itemData, quantity))
+		CompletableFuture<Boolean> f = new CompletableFuture<>();
+		queueScreenshot();
+		clientThread.invokeLater(() -> {
+			queueLootNotification(getPlayerName(), getPlayerIconUrl(), itemId, quantity, rarity, npcId, npcCombatLevel,
+				npcName, null, config.webhookUrl()).handle((_v, e) ->
 			{
-				CompletableFuture<Boolean> f = new CompletableFuture<>();
-				queueScreenshot();
-				clientThread.invokeLater(() -> {
-					queueLootNotification(getPlayerName(), getPlayerIconUrl(), itemId, quantity, itemData.Rarity, npcId, npcCombatLevel,
-						npcName, null, config.webhookUrl()).handle((_v, e) ->
-					{
-						if (e != null)
-						{
-							f.completeExceptionally(e);
-						}
-						else
-						{
-							f.complete(true);
-						}
-						return null;
-					});
-				});
-
-				return f;
-			}
-			else
-			{
-				return CompletableFuture.completedFuture(false);
-			}
+				if (e != null)
+				{
+					f.completeExceptionally(e);
+				}
+				else
+				{
+					f.complete(true);
+				}
+				return null;
+			});
 		});
+
+		return f;
 	}
 
 	private void queueScreenshot()
