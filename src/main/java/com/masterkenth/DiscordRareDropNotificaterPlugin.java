@@ -36,6 +36,7 @@ import com.masterkenth.discord.Image;
 import com.masterkenth.discord.Webhook;
 import java.awt.image.BufferedImage;
 import java.io.ByteArrayOutputStream;
+import java.text.MessageFormat;
 import java.text.NumberFormat;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -353,7 +354,6 @@ public class DiscordRareDropNotificaterPlugin extends Plugin
 			}
 
 			result.complete(meetsRequirements(itemData, quantity));
-
 			return result;
 		});
 	}
@@ -396,8 +396,13 @@ public class DiscordRareDropNotificaterPlugin extends Plugin
 	{
 		ItemData r = new ItemData();
 		r.ItemId = itemId;
-		r.GePrice = itemManager.getItemPrice(itemId);
+		r.GePrice = itemManager.getItemPriceWithSource(itemId, true);
 		r.HaPrice = itemManager.getItemComposition(itemId).getHaPrice();
+
+		if(log.isDebugEnabled()){
+			log.debug(MessageFormat.format("Item {0} prices HA{1}, GE{2}", itemId, r.HaPrice, r.GePrice));
+		}
+
 		return r;
 	}
 
