@@ -122,23 +122,27 @@ public class DiscordRareDropNotificaterPlugin extends Plugin
 		{
 			// Use a wrapper to 'capture' the lambda value
 			// this way we only need to call the api once.
-			ItemData[] wrapper = new ItemData[1];
+			CompletableFuture<ItemData>[] wrapper = new CompletableFuture[1];
 
-			Supplier<ItemData> itemDataSupplier = () -> {
+			Supplier<CompletableFuture<ItemData>> itemDataSupplier = () -> {
 				wrapper[0] = getNPCLootReceivedItemData(npc.getId(), item.getId(), item.getQuantity());
 				return wrapper[0];
 			};
 
-			if (canBeSent(item.getId(), item.getQuantity(), itemDataSupplier))
-			{
-				if(wrapper[0] == null){
-					// sets the value
-					log.debug("We're setting the wrapper value");
-					itemDataSupplier.get();
-				}
+			canBeSent(item.getId(), item.getQuantity(), itemDataSupplier).thenAccept(canSent -> {
+				if (canSent)
+				{
+					if(wrapper[0] == null){
+						// sets the value
+						log.debug("We're setting the wrapper value");
+						itemDataSupplier.get();
+					}
 
-				futures.add(processNpcNotification(npc, item.getId(), item.getQuantity(), wrapper[0].Rarity));
-			}
+					wrapper[0].thenAccept(itemData -> {
+						futures.add(processNpcNotification(npc, item.getId(), item.getQuantity(), itemData.Rarity));
+					});
+				}
+			});
 		}
 
 		if (futures.size() > 0)
@@ -174,11 +178,11 @@ public class DiscordRareDropNotificaterPlugin extends Plugin
 
 		for (ItemStack item : items)
 		{
-			// Just a simple check and process immediately
-			if (canBeSent(item.getId(), item.getQuantity(), () -> getLootReceivedItemData(lootReceived.getName(), lootReceived.getType(), item.getId())))
-			{
-				futures.add(processEventNotification(lootReceived.getType(), lootReceived.getName(), item.getId(), item.getQuantity()));
-			}
+			canBeSent(item.getId(), item.getQuantity(), () -> getLootReceivedItemData(lootReceived.getName(), lootReceived.getType(), item.getId())).thenAccept(canSent -> {
+				if(canSent){
+					futures.add(processEventNotification(lootReceived.getType(), lootReceived.getName(), item.getId(), item.getQuantity()));
+				}
+			});
 		}
 
 		CompletableFuture.allOf(futures.toArray(new CompletableFuture[futures.size()]))
@@ -197,33 +201,21 @@ public class DiscordRareDropNotificaterPlugin extends Plugin
 		}
 	}
 
-	private ItemData getLootReceivedItemData(String eventName, LootRecordType lootRecordType, int itemId){
-		return lootRecordType == LootRecordType.PICKPOCKET ?
+	private CompletableFuture<ItemData> getLootReceivedItemData(String eventName, LootRecordType lootRecordType, int itemId){
+		CompletableFuture<ItemData> result = new CompletableFuture<>();
+
+		ItemData itemData = lootRecordType == LootRecordType.PICKPOCKET ?
 			rarityChecker.CheckRarityPickpocket(eventName, EnrichItem(itemId), itemManager) :
 			rarityChecker.CheckRarityEvent(eventName, EnrichItem(itemId), itemManager);
+
+		result.complete(itemData);
+		return result;
 	}
 
-	private ItemData getNPCLootReceivedItemData(int npcId, int itemId, int quantity)
+	private CompletableFuture<ItemData> getNPCLootReceivedItemData(int npcId, int itemId, int quantity)
 	{
 		ItemData incomplete = EnrichItem(itemId);
-		
-		List<CompletableFuture<ItemData>> futures = new ArrayList<CompletableFuture<ItemData>>();
-
-		CompletableFuture<ItemData> future = rarityChecker.CheckRarityNPC(npcId, incomplete, itemManager, quantity);
-		futures.add(future);
-
-		CompletableFuture.allOf(futures.toArray(new CompletableFuture[futures.size()])); // we doin it?
-
-		try{
-			return future.get(100, TimeUnit.MILLISECONDS);
-		}
-		catch (ExecutionException | InterruptedException | TimeoutException e)
-		{
-			e.printStackTrace();
-			log.error("Cannot get NPC item rarity", e);
-		}
-
-		return null;
+		return rarityChecker.CheckRarityNPC(npcId, incomplete, itemManager, quantity);
 	}
 
 	@Subscribe
@@ -278,8 +270,9 @@ public class DiscordRareDropNotificaterPlugin extends Plugin
 		return false;
 	}
 
-	private boolean canBeSent(int itemId, int quantity, Supplier<ItemData> itemDataSupplier)
+	private CompletableFuture<Boolean> canBeSent(int itemId, int quantity, Supplier<CompletableFuture<ItemData>> itemDataSupplier)
 	{
+		CompletableFuture<Boolean> result = new CompletableFuture<>();
 		ItemComposition comp = itemManager.getItemComposition(itemId);
 		String lowerName = comp.getName().toLowerCase();
 
@@ -305,7 +298,8 @@ public class DiscordRareDropNotificaterPlugin extends Plugin
 				log.debug("We're whitelisted. We can be sent");
 			}
 
-			return true;
+			result.complete(true);
+			return result;
 		}
 
 		if(blacklist.stream().anyMatch(lowerName::equals)){
@@ -317,7 +311,8 @@ public class DiscordRareDropNotificaterPlugin extends Plugin
 				log.debug("We're blacklisted. We cannot be sent");
 			}
 
-			return false;
+			result.complete(false);
+			return result;
 		}
 
 		if(whitelist.stream().anyMatch(lowerName::contains)){
@@ -329,7 +324,8 @@ public class DiscordRareDropNotificaterPlugin extends Plugin
 				log.debug("We're fuzzy whitelisted. We can be sent");
 			}
 
-			return true;
+			result.complete(true);
+			return result;
 		}
 
 		if(blacklist.stream().anyMatch(lowerName::contains)){
@@ -340,7 +336,8 @@ public class DiscordRareDropNotificaterPlugin extends Plugin
 				log.debug("We're fuzzy blacklisted. We cannot be sent");
 			}
 
-			return false;
+			result.complete(false);
+			return result;
 		}
 
 		if(log.isDebugEnabled())
@@ -348,14 +345,17 @@ public class DiscordRareDropNotificaterPlugin extends Plugin
 			log.debug("We're not in any item list. We need to continue our check.");
 		}
 
-		ItemData itemData = itemDataSupplier.get();
 
-		if(itemData == null){
-			log.debug("We cannot complete the request since we have no data");
-			return false;
-		}
+		return itemDataSupplier.get().thenCompose(itemData -> {
+			if(itemData == null){
+				log.debug("We cannot complete the request since we have no data");
+				result.complete(true);
+			}
 
-		return meetsRequirements(itemData, quantity);
+			result.complete(meetsRequirements(itemData, quantity));
+
+			return result;
+		});
 	}
 
 	private CompletableFuture<Boolean> processEventNotification(LootRecordType lootRecordType, String eventName, int itemId, int quantity)
