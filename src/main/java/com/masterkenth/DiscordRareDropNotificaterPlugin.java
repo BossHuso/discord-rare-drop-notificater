@@ -396,7 +396,7 @@ public class DiscordRareDropNotificaterPlugin extends Plugin
 	{
 		ItemData r = new ItemData();
 		r.ItemId = itemId;
-		r.GePrice = itemManager.getItemPriceWithSource(itemId, true);
+		r.GePrice = itemManager.getItemPrice(itemId);
 		r.HaPrice = itemManager.getItemComposition(itemId).getHaPrice();
 
 		if(log.isDebugEnabled()){
