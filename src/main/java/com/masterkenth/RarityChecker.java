@@ -187,7 +187,7 @@ public class RarityChecker
 				}
 
 				// No entry for item, default to 100% drop
-				f.complete(null);
+				f.complete(itemData);
 			}
 			catch (Exception e)
 			{
