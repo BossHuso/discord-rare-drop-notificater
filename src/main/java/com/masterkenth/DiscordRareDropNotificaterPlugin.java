@@ -36,6 +36,7 @@ import com.masterkenth.discord.Image;
 import com.masterkenth.discord.Webhook;
 import java.awt.image.BufferedImage;
 import java.io.ByteArrayOutputStream;
+import java.text.MessageFormat;
 import java.text.NumberFormat;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -43,11 +44,15 @@ import java.util.Collection;
 import java.util.List;
 import java.util.Locale;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
+import java.util.function.Supplier;
 import java.util.stream.Collectors;
-import java.util.stream.Stream;
 import javax.imageio.ImageIO;
 import javax.inject.Inject;
 import lombok.extern.slf4j.Slf4j;
+import lombok.var;
 import net.runelite.api.ChatMessageType;
 import net.runelite.api.Client;
 import net.runelite.api.ItemComposition;
@@ -116,11 +121,29 @@ public class DiscordRareDropNotificaterPlugin extends Plugin
 		List<CompletableFuture<Boolean>> futures = new ArrayList<CompletableFuture<Boolean>>();
 		for (ItemStack item : items)
 		{
-			ItemComposition comp = itemManager.getItemComposition(item.getId());
-			if (canBeSent(comp.getName()))
-			{
-				futures.add(processItemRarityNPC(npc, item.getId(), item.getQuantity()));
-			}
+			// Use a wrapper to 'capture' the lambda value
+			// this way we only need to call the api once.
+			CompletableFuture<ItemData>[] wrapper = new CompletableFuture[1];
+
+			Supplier<CompletableFuture<ItemData>> itemDataSupplier = () -> {
+				wrapper[0] = getNPCLootReceivedItemData(npc.getId(), item.getId(), item.getQuantity());
+				return wrapper[0];
+			};
+
+			canBeSent(item.getId(), item.getQuantity(), itemDataSupplier).thenAccept(canSent -> {
+				if (canSent)
+				{
+					if(wrapper[0] == null){
+						// sets the value
+						log.debug("We're setting the wrapper value");
+						itemDataSupplier.get();
+					}
+
+					wrapper[0].thenAccept(itemData -> {
+						futures.add(processNpcNotification(npc, item.getId(), item.getQuantity(), itemData.Rarity));
+					});
+				}
+			});
 		}
 
 		if (futures.size() > 0)
@@ -156,11 +179,11 @@ public class DiscordRareDropNotificaterPlugin extends Plugin
 
 		for (ItemStack item : items)
 		{
-			ItemComposition comp = itemManager.getItemComposition(item.getId());
-			if (canBeSent(comp.getName()))
-			{
-				futures.add(processItemRarity(lootReceived.getType(), lootReceived.getName(), item.getId(), item.getQuantity()));
-			}
+			canBeSent(item.getId(), item.getQuantity(), () -> getLootReceivedItemData(lootReceived.getName(), lootReceived.getType(), item.getId())).thenAccept(canSent -> {
+				if(canSent){
+					futures.add(processEventNotification(lootReceived.getType(), lootReceived.getName(), item.getId(), item.getQuantity()));
+				}
+			});
 		}
 
 		CompletableFuture.allOf(futures.toArray(new CompletableFuture[futures.size()]))
@@ -177,6 +200,23 @@ public class DiscordRareDropNotificaterPlugin extends Plugin
 			CompletableFuture.allOf(futures.toArray(new CompletableFuture[futures.size()]))
 				.thenAccept(_v -> sendScreenshotIfSupposedTo());
 		}
+	}
+
+	private CompletableFuture<ItemData> getLootReceivedItemData(String eventName, LootRecordType lootRecordType, int itemId){
+		CompletableFuture<ItemData> result = new CompletableFuture<>();
+
+		ItemData itemData = lootRecordType == LootRecordType.PICKPOCKET ?
+			rarityChecker.CheckRarityPickpocket(eventName, EnrichItem(itemId), itemManager) :
+			rarityChecker.CheckRarityEvent(eventName, EnrichItem(itemId), itemManager);
+
+		result.complete(itemData);
+		return result;
+	}
+
+	private CompletableFuture<ItemData> getNPCLootReceivedItemData(int npcId, int itemId, int quantity)
+	{
+		ItemData incomplete = EnrichItem(itemId);
+		return rarityChecker.CheckRarityNPC(npcId, incomplete, itemManager, quantity);
 	}
 
 	@Subscribe
@@ -231,47 +271,103 @@ public class DiscordRareDropNotificaterPlugin extends Plugin
 		return false;
 	}
 
-	private boolean canBeSent(String itemName)
+	private CompletableFuture<Boolean> canBeSent(int itemId, int quantity, Supplier<CompletableFuture<ItemData>> itemDataSupplier)
 	{
-		String lowerName = itemName.toLowerCase();
-		Stream<String> whitelist = Arrays.stream(config.whiteListedItems().split(",")).filter(item -> item.length() > 0).map(String::toLowerCase);
-		Stream<String> blacklist = Arrays.stream(config.ignoredKeywords().split(",")).filter(item -> item.length() > 0).map(String::toLowerCase);
+		CompletableFuture<Boolean> result = new CompletableFuture<>();
+		ItemComposition comp = itemManager.getItemComposition(itemId);
+		String lowerName = comp.getName().toLowerCase();
 
-		if(whitelist.anyMatch(lowerName::equals)){
+		List<String> whitelist = Arrays.stream(config.whiteListedItems()
+			.split(",")).filter(itemName -> itemName.length() > 0)
+			.map(String::toLowerCase).collect(Collectors.toList());
+
+		List<String> blacklist = Arrays.stream(config.ignoredKeywords()
+			.split(",")).filter(itemName -> itemName.length() > 0)
+			.map(String::toLowerCase).collect(Collectors.toList());
+
+		if(log.isDebugEnabled())
+		{
+			log.debug(String.format("Checking if %s can be sent", lowerName));
+		}
+
+		if(whitelist.stream().anyMatch(lowerName::equals)){
 			// It's an exact match with whitelist
 			// This must be sent
-			return true;
+
+			if(log.isDebugEnabled())
+			{
+				log.debug("We're whitelisted. We can be sent");
+			}
+
+			result.complete(true);
+			return result;
 		}
 
-		if(blacklist.anyMatch(lowerName::equals)){
+		if(blacklist.stream().anyMatch(lowerName::equals)){
 			// Exact match with blacklist
 			// must be ignored
-			return false;
+
+			if(log.isDebugEnabled())
+			{
+				log.debug("We're blacklisted. We cannot be sent");
+			}
+
+			result.complete(false);
+			return result;
 		}
 
-		if(whitelist.anyMatch(lowerName::contains)){
+		if(whitelist.stream().anyMatch(lowerName::contains)){
 			// Fuzzy whitelist
 			// is accepted
-			return true;
+
+			if(log.isDebugEnabled())
+			{
+				log.debug("We're fuzzy whitelisted. We can be sent");
+			}
+
+			result.complete(true);
+			return result;
 		}
 
-		// Fuzzy blacklist
-		// is ignored
-		return blacklist.noneMatch(lowerName::contains);
+		if(blacklist.stream().anyMatch(lowerName::contains)){
+			// Fuzzy blacklist
+			// is ignored
+			if(log.isDebugEnabled())
+			{
+				log.debug("We're fuzzy blacklisted. We cannot be sent");
+			}
+
+			result.complete(false);
+			return result;
+		}
+
+		if(log.isDebugEnabled())
+		{
+			log.debug("We're not in any item list. We need to continue our check.");
+		}
+
+
+		return itemDataSupplier.get().thenCompose(itemData -> {
+			if(itemData == null){
+				log.debug("We cannot complete the request since we have no data");
+				result.complete(true);
+			}
+
+			result.complete(meetsRequirements(itemData, quantity));
+			return result;
+		});
 	}
 
-	private CompletableFuture<Boolean> processItemRarity(LootRecordType lootRecordType, String eventName, int itemId, int quantity)
+	private CompletableFuture<Boolean> processEventNotification(LootRecordType lootRecordType, String eventName, int itemId, int quantity)
 	{
 		ItemData itemData = lootRecordType == LootRecordType.PICKPOCKET ? rarityChecker.CheckRarityPickpocket(eventName, EnrichItem(itemId), itemManager) : rarityChecker.CheckRarityEvent(eventName, EnrichItem(itemId), itemManager);
 
-		if (meetsRequirements(itemData, quantity))
-		{
-			queueScreenshot();
-			clientThread.invokeLater(() -> {
-				queueLootNotification(getPlayerName(), getPlayerIconUrl(), itemId, quantity, itemData.Rarity, -1, -1, null,
-					eventName, config.webhookUrl()).thenApply(_v -> true);
-			});
-		}
+		queueScreenshot();
+		clientThread.invokeLater(() -> {
+			queueLootNotification(getPlayerName(), getPlayerIconUrl(), itemId, quantity, itemData.Rarity, -1, -1, null,
+				eventName, config.webhookUrl()).thenApply(_v -> true);
+		});
+
 		return CompletableFuture.completedFuture(false);
 	}
 
@@ -302,44 +398,39 @@ public class DiscordRareDropNotificaterPlugin extends Plugin
 		r.ItemId = itemId;
 		r.GePrice = itemManager.getItemPrice(itemId);
 		r.HaPrice = itemManager.getItemComposition(itemId).getHaPrice();
+
+		if(log.isDebugEnabled()){
+			log.debug(MessageFormat.format("Item {0} prices HA{1}, GE{2}", itemId, r.HaPrice, r.GePrice));
+		}
+
 		return r;
 	}
 
-	private CompletableFuture<Boolean> processItemRarityNPC(NPC npc, int itemId, int quantity)
+	private CompletableFuture<Boolean> processNpcNotification(NPC npc, int itemId, int quantity, float rarity)
 	{
 		int npcId = npc.getId();
 		int npcCombatLevel = npc.getCombatLevel();
 		String npcName = npc.getName();
 
-		return rarityChecker.CheckRarityNPC(npcId, EnrichItem(itemId), itemManager, quantity).thenCompose(itemData ->
-		{
-			if (meetsRequirements(itemData, quantity))
+		CompletableFuture<Boolean> f = new CompletableFuture<>();
+		queueScreenshot();
+		clientThread.invokeLater(() -> {
+			queueLootNotification(getPlayerName(), getPlayerIconUrl(), itemId, quantity, rarity, npcId, npcCombatLevel,
+				npcName, null, config.webhookUrl()).handle((_v, e) ->
 			{
-				CompletableFuture<Boolean> f = new CompletableFuture<>();
-				queueScreenshot();
-				clientThread.invokeLater(() -> {
-					queueLootNotification(getPlayerName(), getPlayerIconUrl(), itemId, quantity, itemData.Rarity, npcId, npcCombatLevel,
-						npcName, null, config.webhookUrl()).handle((_v, e) ->
-					{
-						if (e != null)
-						{
-							f.completeExceptionally(e);
-						}
-						else
-						{
-							f.complete(true);
-						}
-						return null;
-					});
-				});
-
-				return f;
-			}
-			else
-			{
-				return CompletableFuture.completedFuture(false);
-			}
+				if (e != null)
+				{
+					f.completeExceptionally(e);
+				}
+				else
+				{
+					f.complete(true);
+				}
+				return null;
+			});
 		});
+
+		return f;
 	}
 
 	private void queueScreenshot()
