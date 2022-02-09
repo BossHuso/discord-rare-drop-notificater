@@ -348,11 +348,6 @@ public class DiscordRareDropNotificaterPlugin extends Plugin
 
 
 		return itemDataSupplier.get().thenCompose(itemData -> {
-			if(itemData == null){
-				log.debug("We cannot complete the request since we have no data");
-				result.complete(true);
-			}
-
 			result.complete(meetsRequirements(itemData, quantity));
 			return result;
 		});
