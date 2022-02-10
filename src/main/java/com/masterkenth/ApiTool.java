@@ -29,7 +29,10 @@ package com.masterkenth;
 
 import java.io.File;
 import java.io.IOException;
+import java.util.HashMap;
+import java.util.Map;
 import java.util.concurrent.CompletableFuture;
+import lombok.extern.slf4j.Slf4j;
 import net.runelite.client.RuneLite;
 import okhttp3.Cache;
 import okhttp3.Call;
@@ -47,6 +50,7 @@ import org.jsoup.Jsoup;
 import org.jsoup.nodes.Document;
 import org.jsoup.nodes.Element;
 
+@Slf4j
 public class ApiTool
 {
 	private static final String API_ROOT = "api.osrsbox.com";
@@ -54,6 +58,8 @@ public class ApiTool
 	private static final String API_PATH_ITEMS = "items";
 	private static final String WIKI_ROOT = "oldschool.runescape.wiki";
 	private static ApiTool _instance;
+
+	private static final Map<Integer, JSONObject> cachedNPCs = new HashMap<>();
 
 	private OkHttpClient httpClient = null;
 
@@ -71,12 +77,44 @@ public class ApiTool
 
 	public CompletableFuture<JSONObject> getNPC(int npcId)
 	{
-		HttpUrl url = new HttpUrl.Builder().scheme("https").host(API_ROOT).addPathSegment(API_PATH_NPCS)
-			.addPathSegment("" + npcId).build();
+		CompletableFuture<JSONObject> f = new CompletableFuture<>();
 
-		Request request = new Request.Builder().url(url).build();
+		try
+		{
+			if(cachedNPCs.containsKey(npcId)) {
+				log.debug("NPC with ID " + npcId + " found in cache. Returning cached data.");
 
-		return CallRequestJson(request);
+				f.complete(cachedNPCs.get(npcId));
+			} else {
+				HttpUrl url = new HttpUrl.Builder().scheme("https").host(API_ROOT).addPathSegment(API_PATH_NPCS)
+						.addPathSegment("" + npcId).build();
+
+				Request request = new Request.Builder().url(url).build();
+
+				CallRequestJson(request).thenAccept(response ->
+				{
+					if(cachedNPCs.size() >= 10) {
+						// Clear cache periodically (after every 10 NPCs to prevent high memory usage)
+						// Perhaps we should only remove the first entry and always keep a certain amount of NPCs in cache
+						cachedNPCs.clear();
+
+						log.debug("Cached NPCs size is 10, clearing to prevent high memory usage.");
+					}
+
+					cachedNPCs.putIfAbsent(npcId, response);
+
+					log.debug("NPC with ID " + npcId + " added to cache.");
+
+					f.complete(response);
+				});
+			}
+		}
+		catch (Exception e)
+		{
+			f.completeExceptionally(e);
+		}
+
+		return f;
 	}
 
 	public CompletableFuture<JSONObject> getItem(int itemId)
@@ -109,7 +147,7 @@ public class ApiTool
 				if (el != null)
 				{
 					String srcAttr = el.attributes().get("src");
-					String absoluteIconPath = baseUrl.toString() + srcAttr.substring(1);
+					String absoluteIconPath = baseUrl + srcAttr.substring(1);
 					f.complete(absoluteIconPath);
 				}
 			}
