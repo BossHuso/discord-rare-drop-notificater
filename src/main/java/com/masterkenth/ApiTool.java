@@ -29,10 +29,7 @@ package com.masterkenth;
 
 import java.io.File;
 import java.io.IOException;
-import java.util.HashMap;
-import java.util.Map;
 import java.util.concurrent.CompletableFuture;
-import lombok.extern.slf4j.Slf4j;
 import net.runelite.client.RuneLite;
 import okhttp3.Cache;
 import okhttp3.Call;
@@ -45,21 +42,14 @@ import okhttp3.Request;
 import okhttp3.RequestBody;
 import okhttp3.Response;
 import okhttp3.ResponseBody;
-import org.json.JSONObject;
 import org.jsoup.Jsoup;
 import org.jsoup.nodes.Document;
 import org.jsoup.nodes.Element;
 
-@Slf4j
 public class ApiTool
 {
-	private static final String API_ROOT = "api.osrsbox.com";
-	private static final String API_PATH_NPCS = "monsters";
-	private static final String API_PATH_ITEMS = "items";
 	private static final String WIKI_ROOT = "oldschool.runescape.wiki";
 	private static ApiTool _instance;
-
-	private static final Map<Integer, JSONObject> cachedNPCs = new HashMap<>();
 
 	private OkHttpClient httpClient = null;
 
@@ -75,57 +65,6 @@ public class ApiTool
 		return _instance;
 	}
 
-	public CompletableFuture<JSONObject> getNPC(int npcId)
-	{
-		CompletableFuture<JSONObject> f = new CompletableFuture<>();
-
-		try
-		{
-			if(cachedNPCs.containsKey(npcId)) {
-				log.debug("NPC with ID " + npcId + " found in cache. Returning cached data.");
-
-				f.complete(cachedNPCs.get(npcId));
-			} else {
-				HttpUrl url = new HttpUrl.Builder().scheme("https").host(API_ROOT).addPathSegment(API_PATH_NPCS)
-						.addPathSegment("" + npcId).build();
-
-				Request request = new Request.Builder().url(url).build();
-
-				CallRequestJson(request).thenAccept(response ->
-				{
-					if(cachedNPCs.size() >= 10) {
-						// Clear cache periodically (after every 10 NPCs to prevent high memory usage)
-						// Perhaps we should only remove the first entry and always keep a certain amount of NPCs in cache
-						cachedNPCs.clear();
-
-						log.debug("Cached NPCs size is 10, clearing to prevent high memory usage.");
-					}
-
-					cachedNPCs.putIfAbsent(npcId, response);
-
-					log.debug("NPC with ID " + npcId + " added to cache.");
-
-					f.complete(response);
-				});
-			}
-		}
-		catch (Exception e)
-		{
-			f.completeExceptionally(e);
-		}
-
-		return f;
-	}
-
-	public CompletableFuture<JSONObject> getItem(int itemId)
-	{
-		HttpUrl url = new HttpUrl.Builder().scheme("https").host(API_ROOT).addPathSegment(API_PATH_ITEMS)
-			.addPathSegment("" + itemId).build();
-
-		Request request = new Request.Builder().url(url).build();
-
-		return CallRequestJson(request);
-	}
 
 	public CompletableFuture<String> getIconUrl(String searchType, int searchId, String searchName)
 	{
@@ -147,7 +86,7 @@ public class ApiTool
 				if (el != null)
 				{
 					String srcAttr = el.attributes().get("src");
-					String absoluteIconPath = baseUrl + srcAttr.substring(1);
+					String absoluteIconPath = baseUrl.toString() + srcAttr.substring(1);
 					f.complete(absoluteIconPath);
 				}
 			}
@@ -209,22 +148,5 @@ public class ApiTool
 		});
 
 		return future;
-	}
-
-	private CompletableFuture<JSONObject> CallRequestJson(Request request)
-	{
-		return callRequest(request).thenCompose(responseBody ->
-		{
-			CompletableFuture<JSONObject> f = new CompletableFuture<>();
-			try
-			{
-				f.complete(new JSONObject(responseBody.string()));
-			}
-			catch (Exception e)
-			{
-				f.completeExceptionally(e);
-			}
-			return f;
-		});
 	}
 }

@@ -44,15 +44,11 @@ import java.util.Collection;
 import java.util.List;
 import java.util.Locale;
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.ExecutionException;
-import java.util.concurrent.TimeUnit;
-import java.util.concurrent.TimeoutException;
 import java.util.function.Supplier;
 import java.util.stream.Collectors;
 import javax.imageio.ImageIO;
 import javax.inject.Inject;
 import lombok.extern.slf4j.Slf4j;
-import lombok.var;
 import net.runelite.api.ChatMessageType;
 import net.runelite.api.Client;
 import net.runelite.api.ItemComposition;
@@ -647,43 +643,37 @@ public class DiscordRareDropNotificaterPlugin extends Plugin
 																	 int npcCombatLevel, String npcName, String eventName, boolean plainText)
 	{
 		ItemComposition itemComp = itemManager.getItemComposition(itemId);
+		String itemUrl = getWikiUrl(itemComp.getName());
+		String baseMsg = (plainText) ?
+			"Just got **" + (quantity > 1 ? quantity + "x " : "") + itemComp.getName() + "**" :
+			"Just got " + (quantity > 1 ? quantity + "x " : "") + "[" + itemComp.getName() + "](" + itemUrl + ")";
 
-		return ApiTool.getInstance().getItem(itemId).thenCompose(itemJson ->
+		if (npcId >= 0)
 		{
-			String itemUrl = itemJson.getString("wiki_url");
-			String baseMsg = (plainText) ?
-					"Just got **" + (quantity > 1 ? quantity + "x " : "") + itemComp.getName() + "**" :
-					"Just got " + (quantity > 1 ? quantity + "x " : "") + "[" + itemComp.getName() + "](" + itemUrl + ")";
+			String npcUrl = getWikiUrl(npcName);
+			String fullMsg = (plainText) ?
+				baseMsg + " from lvl " + npcCombatLevel + " **" + npcName + "**" :
+				baseMsg + " from lvl " + npcCombatLevel + " [" + npcName + "](" + npcUrl + ")";
 
-			if (npcId >= 0)
-			{
-				return ApiTool.getInstance().getNPC(npcId).thenApply(npcJson ->
-				{
-					String npcUrl = npcJson.getString("wiki_url");
-					String fullMsg = (plainText) ?
-							baseMsg + " from lvl " + npcCombatLevel + " **" + npcName + "**" :
-							baseMsg + " from lvl " + npcCombatLevel + " [" + npcName + "](" + npcUrl + ")";
-					return fullMsg;
-				}).exceptionally(e ->
-				{
-					log.error("!= NPC info for " + npcId + " (" + e.getMessage() + ")");
-					return baseMsg + " from lvl " + npcCombatLevel + " " + npcName;
-				});
-			}
-			else if (eventName != null)
-			{
-				String eventUrl = HttpUrl.parse("https://oldschool.runescape.wiki/").newBuilder()
-					.addPathSegments("w/Special:Search").addQueryParameter("search", eventName).build().toString();
-				String fullMsg = (plainText) ?
-						baseMsg + " from **" + eventName + "**" :
-						baseMsg + " from [" + eventName + "](" + eventUrl + ")";
-				return CompletableFuture.completedFuture(fullMsg);
-			}
-			else
-			{
-				return CompletableFuture.completedFuture(baseMsg + " from something");
-			}
-		});
+			return CompletableFuture.completedFuture(fullMsg);
+		}
+		else if (eventName != null)
+		{
+			String eventUrl = getWikiUrl(eventName);
+			String fullMsg = (plainText) ?
+				baseMsg + " from **" + eventName + "**" :
+				baseMsg + " from [" + eventName + "](" + eventUrl + ")";
+			return CompletableFuture.completedFuture(fullMsg);
+		}
+		else
+		{
+			return CompletableFuture.completedFuture(baseMsg + " from something");
+		}
+	}
+
+	private String getWikiUrl(String search){
+		return HttpUrl.parse("https://oldschool.runescape.wiki/").newBuilder()
+			.addPathSegments("w/Special:Search").addQueryParameter("search", search).build().toString();
 	}
 
 	private String getPetNotificationDescription(boolean isDuplicate)
