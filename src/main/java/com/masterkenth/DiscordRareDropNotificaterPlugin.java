@@ -106,6 +106,13 @@ public class DiscordRareDropNotificaterPlugin extends Plugin
 		return configManager.getConfig(DiscordRareDropNotificaterConfig.class);
 	}
 
+	@Override
+	protected void startUp() throws Exception
+	{
+		JsonUtils.getInstance();
+		super.startUp();
+	}
+
 	@Subscribe
 	public void onNpcLootReceived(NpcLootReceived npcLootReceived)
 	{
