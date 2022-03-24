@@ -36,13 +36,11 @@ import lombok.extern.slf4j.Slf4j;
 import net.runelite.api.ItemComposition;
 import net.runelite.client.game.ItemManager;
 import net.runelite.client.game.ItemVariationMapping;
-import org.json.JSONArray;
 import org.json.JSONObject;
 
 @Slf4j
 public class RarityChecker
 {
-
 	public ItemData CheckRarityEvent(String eventName, ItemData item, ItemManager itemManager)
 	{
 		String lowerName = eventName.toLowerCase();
@@ -129,11 +127,10 @@ public class RarityChecker
 			}
 		}
 
-		ApiTool.getInstance().getNPC(npcId).thenAccept(npcJson ->
+		JsonUtils.getInstance().getNpcDropList(npcId).thenAccept(drops ->
 		{
 			try
 			{
-				JSONArray drops = npcJson.getJSONArray("drops");
 				HashMap<Integer, JSONObject> jsonObjects = new HashMap<>();
 
 				for (int i = 0; i < drops.length(); i++)

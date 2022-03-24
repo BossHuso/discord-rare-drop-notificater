@@ -42,16 +42,12 @@ import okhttp3.Request;
 import okhttp3.RequestBody;
 import okhttp3.Response;
 import okhttp3.ResponseBody;
-import org.json.JSONObject;
 import org.jsoup.Jsoup;
 import org.jsoup.nodes.Document;
 import org.jsoup.nodes.Element;
 
 public class ApiTool
 {
-	private static final String API_ROOT = "api.osrsbox.com";
-	private static final String API_PATH_NPCS = "monsters";
-	private static final String API_PATH_ITEMS = "items";
 	private static final String WIKI_ROOT = "oldschool.runescape.wiki";
 	private static ApiTool _instance;
 
@@ -69,25 +65,6 @@ public class ApiTool
 		return _instance;
 	}
 
-	public CompletableFuture<JSONObject> getNPC(int npcId)
-	{
-		HttpUrl url = new HttpUrl.Builder().scheme("https").host(API_ROOT).addPathSegment(API_PATH_NPCS)
-			.addPathSegment("" + npcId).build();
-
-		Request request = new Request.Builder().url(url).build();
-
-		return CallRequestJson(request);
-	}
-
-	public CompletableFuture<JSONObject> getItem(int itemId)
-	{
-		HttpUrl url = new HttpUrl.Builder().scheme("https").host(API_ROOT).addPathSegment(API_PATH_ITEMS)
-			.addPathSegment("" + itemId).build();
-
-		Request request = new Request.Builder().url(url).build();
-
-		return CallRequestJson(request);
-	}
 
 	public CompletableFuture<String> getIconUrl(String searchType, int searchId, String searchName)
 	{
@@ -171,22 +148,5 @@ public class ApiTool
 		});
 
 		return future;
-	}
-
-	private CompletableFuture<JSONObject> CallRequestJson(Request request)
-	{
-		return callRequest(request).thenCompose(responseBody ->
-		{
-			CompletableFuture<JSONObject> f = new CompletableFuture<>();
-			try
-			{
-				f.complete(new JSONObject(responseBody.string()));
-			}
-			catch (Exception e)
-			{
-				f.completeExceptionally(e);
-			}
-			return f;
-		});
 	}
 }
