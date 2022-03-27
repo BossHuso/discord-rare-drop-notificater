@@ -34,7 +34,7 @@ public class JsonUtils
 
 	public JsonUtils()
 	{
-		cachedMonsterDropList = getJsonFromResource("monster-drops.json");
+		cachedMonsterDropList = getJsonFromResource("/monster-drops.json");
 	}
 
 	public CompletableFuture<JSONArray> getNpcDropList(int npcId)
@@ -51,7 +51,7 @@ public class JsonUtils
 	{
 		try (BufferedReader br = new BufferedReader(
 			new InputStreamReader(
-				Objects.requireNonNull(Thread.currentThread().getContextClassLoader().getResourceAsStream(resource)),
+				Objects.requireNonNull(DiscordRareDropNotificaterPlugin.class.getResourceAsStream(resource)),
 				StandardCharsets.UTF_8)))
 		{
 			String json = br.lines().collect(Collectors.joining("\n"));
