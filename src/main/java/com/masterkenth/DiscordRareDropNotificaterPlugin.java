@@ -493,17 +493,9 @@ public class DiscordRareDropNotificaterPlugin extends Plugin
 		}
 
 		Image thumbnail = new Image();
-		CompletableFuture<Void> iconFuture = ApiTool.getInstance()
-			.getIconUrl("item", itemId, itemManager.getItemComposition(itemId).getName()).handle((iconUrl, e) ->
-			{
-				if (e != null)
-				{
-					log.error(String.format("queueLootNotification (icon %d) error: %s", itemId, e.getMessage()), e);
-				}
-				thumbnail.setUrl(iconUrl);
-				embed.setThumbnail(thumbnail);
-				return null;
-			});
+		String iconUrl = ApiTool.getInstance().getIconUrl(itemId);
+		thumbnail.setUrl(iconUrl);
+		embed.setThumbnail(thumbnail);
 
 		CompletableFuture<Void> descFuture = getLootNotificationDescription(itemId, quantity, npcId, npcCombatLevel,
 			npcName, eventName, !config.sendEmbeddedMessage()).handle((notifDesc, e) ->
@@ -518,7 +510,7 @@ public class DiscordRareDropNotificaterPlugin extends Plugin
 			return null;
 		});
 
-		return CompletableFuture.allOf(descFuture, iconFuture).thenCompose(_v ->
+		return CompletableFuture.allOf(descFuture).thenCompose(_v ->
 		{
 			if(config.sendEmbeddedMessage()) {
 				webhookData.setEmbeds(new Embed[]{embed});
