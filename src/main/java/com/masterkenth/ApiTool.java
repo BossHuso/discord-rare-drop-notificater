@@ -66,36 +66,9 @@ public class ApiTool
 	}
 
 
-	public CompletableFuture<String> getIconUrl(String searchType, int searchId, String searchName)
+	public String getIconUrl(int id)
 	{
-		HttpUrl baseUrl = new HttpUrl.Builder().host(WIKI_ROOT).scheme("https").build();
-		HttpUrl url = baseUrl.newBuilder().addPathSegments("w/Special:Lookup").addQueryParameter("type", searchType)
-			.addQueryParameter("id", "" + searchId).addQueryParameter("name", searchName).build();
-
-		Request request = new Request.Builder().url(url).build();
-
-		return callRequest(request).thenCompose(rb ->
-		{
-			CompletableFuture<String> f = new CompletableFuture<>();
-			try
-			{
-				String bodyString = rb.string();
-
-				Document doc = Jsoup.parse(bodyString);
-				Element el = doc.selectFirst("td.inventory-image a.image img");
-				if (el != null)
-				{
-					String srcAttr = el.attributes().get("src");
-					String absoluteIconPath = baseUrl.toString() + srcAttr.substring(1);
-					f.complete(absoluteIconPath);
-				}
-			}
-			catch (Exception e)
-			{
-				f.completeExceptionally(e);
-			}
-			return f;
-		});
+		return String.format("https://static.runelite.net/cache/item/icon/%d.png", id);
 	}
 
 	public CompletableFuture<ResponseBody> postRaw(String url, String data, String type)
