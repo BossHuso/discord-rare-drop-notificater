@@ -1,21 +1,21 @@
 package com.masterkenth;
 
-import java.io.BufferedReader;
-import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.nio.charset.StandardCharsets;
+import java.util.List;
 import java.util.Objects;
-import java.util.concurrent.CompletableFuture;
-import java.util.stream.Collectors;
+
+import com.google.gson.Gson;
+import com.google.gson.reflect.TypeToken;
+import com.google.gson.stream.JsonReader;
+import com.masterkenth.models.Npc;
 import lombok.extern.slf4j.Slf4j;
-import org.json.JSONArray;
-import org.json.JSONObject;
 
 @Slf4j
 public class JsonUtils
 {
 	private static JsonUtils _instance;
-	private final JSONObject cachedMonsterDropList;
+	private final List<Npc> npcList;
 
 	public static JsonUtils getInstance()
 	{
@@ -27,40 +27,23 @@ public class JsonUtils
 		return _instance;
 	}
 
-	private CompletableFuture<JSONObject> getMonsterDropJson()
-	{
-		return CompletableFuture.supplyAsync(() -> cachedMonsterDropList);
-	}
-
 	public JsonUtils()
 	{
-		cachedMonsterDropList = getJsonFromResource("/monster-drops.json");
-	}
-
-	public CompletableFuture<JSONArray> getNpcDropList(int npcId)
-	{
-		CompletableFuture<JSONArray> f = new CompletableFuture<>();
-		getMonsterDropJson().thenAccept(json -> {
-			f.complete(json.getJSONArray(String.valueOf(npcId)));
-		});
-
-		return f;
-	}
-
-	private JSONObject getJsonFromResource(String resource)
-	{
-		try (BufferedReader br = new BufferedReader(
-			new InputStreamReader(
-				Objects.requireNonNull(DiscordRareDropNotificaterPlugin.class.getResourceAsStream(resource)),
-				StandardCharsets.UTF_8)))
-		{
-			String json = br.lines().collect(Collectors.joining("\n"));
-			return new JSONObject(json);
+		try {
+			JsonReader reader = new JsonReader(new InputStreamReader(
+					Objects.requireNonNull(DiscordRareDropNotificaterPlugin.class.getResourceAsStream("/monster-drops.json")),
+					StandardCharsets.UTF_8));
+			npcList = new Gson().fromJson(reader, new TypeToken<List<Npc>>() {}.getType());
 		}
 		catch (Exception e)
 		{
 			log.error("Error getting json", e);
 			throw new RuntimeException(e);
 		}
+	}
+
+	public Npc getNpc(String npcName)
+	{
+		return npcList.stream().filter((i) -> npcName.equals(i.getNpcName())).findFirst().orElse(null);
 	}
 }

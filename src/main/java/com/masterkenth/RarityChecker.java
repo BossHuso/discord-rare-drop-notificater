@@ -27,11 +27,11 @@
  */
 package com.masterkenth;
 
-import java.util.Collection;
-import java.util.HashMap;
-import java.util.HashSet;
-import java.util.Map;
+import java.util.*;
 import java.util.concurrent.CompletableFuture;
+
+import com.masterkenth.models.Npc;
+import com.masterkenth.models.NpcItem;
 import lombok.extern.slf4j.Slf4j;
 import net.runelite.api.ItemComposition;
 import net.runelite.client.game.ItemManager;
@@ -106,7 +106,7 @@ public class RarityChecker
 		return item;
 	}
 
-	public CompletableFuture<ItemData> CheckRarityNPC(int npcId, ItemData itemData, ItemManager itemManager, int quantity)
+	public CompletableFuture<ItemData> CheckRarityNPC(String npcName, ItemData itemData, ItemManager itemManager, int quantity)
 	{
 		CompletableFuture<ItemData> f = new CompletableFuture<>();
 
@@ -127,26 +127,20 @@ public class RarityChecker
 			}
 		}
 
-		JsonUtils.getInstance().getNpcDropList(npcId).thenAccept(drops ->
+
+		try
 		{
-			try
-			{
-				HashMap<Integer, JSONObject> jsonObjects = new HashMap<>();
+			Npc npcDrops = JsonUtils.getInstance().getNpc(npcName);
 
-				for (int i = 0; i < drops.length(); i++)
-				{
-					JSONObject drop = drops.getJSONObject(i);
-					int dropId = drop.getInt("id");
-					jsonObjects.put(dropId, drop);
-				}
-
+			if(npcDrops != null) {
 				for (Integer id : idVariations)
 				{
-					if (jsonObjects.containsKey(id))
+					NpcItem item = npcDrops.getItems().stream().filter((i) -> id.equals(i.getItemID())).findFirst().orElse(null);
+
+					if (item != null)
 					{
-						JSONObject drop = jsonObjects.get(id);
-						itemData.Rarity = drop.getFloat("rarity");
-						String dropQuantityStr = drop.getString("quantity");
+						itemData.Rarity = item.getRarity();
+						String dropQuantityStr = item.getQuantity();
 						String[] quantityParts = dropQuantityStr.split("-");
 						if (quantityParts.length == 2)
 						{
@@ -179,18 +173,17 @@ public class RarityChecker
 
 						itemData.Unique = false;
 						f.complete(itemData);
-						return;
 					}
 				}
+			}
 
-				// No entry for item, default to 100% drop
-				f.complete(itemData);
-			}
-			catch (Exception e)
-			{
-				f.completeExceptionally(e);
-			}
-		});
+			// No entry for item, default to 100% drop
+			f.complete(itemData);
+		}
+		catch (Exception e)
+		{
+			f.completeExceptionally(e);
+		}
 
 		return f;
 	}

@@ -129,7 +129,7 @@ public class DiscordRareDropNotificaterPlugin extends Plugin
 			CompletableFuture<ItemData>[] wrapper = new CompletableFuture[1];
 
 			Supplier<CompletableFuture<ItemData>> itemDataSupplier = () -> {
-				wrapper[0] = getNPCLootReceivedItemData(npc.getId(), item.getId(), item.getQuantity());
+				wrapper[0] = getNPCLootReceivedItemData(npc.getName(), item.getId(), item.getQuantity());
 				return wrapper[0];
 			};
 
@@ -216,10 +216,10 @@ public class DiscordRareDropNotificaterPlugin extends Plugin
 		return result;
 	}
 
-	private CompletableFuture<ItemData> getNPCLootReceivedItemData(int npcId, int itemId, int quantity)
+	private CompletableFuture<ItemData> getNPCLootReceivedItemData(String npcName, int itemId, int quantity)
 	{
 		ItemData incomplete = EnrichItem(itemId);
-		return rarityChecker.CheckRarityNPC(npcId, incomplete, itemManager, quantity);
+		return rarityChecker.CheckRarityNPC(npcName, incomplete, itemManager, quantity);
 	}
 
 	@Subscribe
