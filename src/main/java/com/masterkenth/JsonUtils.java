@@ -29,10 +29,9 @@ public class JsonUtils
 
 	public JsonUtils()
 	{
-		try {
-			JsonReader reader = new JsonReader(new InputStreamReader(
-					Objects.requireNonNull(DiscordRareDropNotificaterPlugin.class.getResourceAsStream("/monster-drops.json")),
-					StandardCharsets.UTF_8));
+		try(InputStreamReader reader = new InputStreamReader(
+				Objects.requireNonNull(DiscordRareDropNotificaterPlugin.class.getResourceAsStream("/monster-drops.json")),
+				StandardCharsets.UTF_8)) {
 			npcList = new Gson().fromJson(reader, new TypeToken<List<Npc>>() {}.getType());
 		}
 		catch (Exception e)
