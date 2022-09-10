@@ -27,13 +27,16 @@
  */
 package com.masterkenth;
 
-import java.util.*;
-
-import com.masterkenth.drops.BaseNPC;
+import java.util.Collection;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.Map;
+import java.util.concurrent.CompletableFuture;
 import lombok.extern.slf4j.Slf4j;
 import net.runelite.api.ItemComposition;
 import net.runelite.client.game.ItemManager;
 import net.runelite.client.game.ItemVariationMapping;
+import org.json.JSONObject;
 
 @Slf4j
 public class RarityChecker
@@ -103,8 +106,10 @@ public class RarityChecker
 		return item;
 	}
 
-	public ItemData CheckRarityNPC(String npcName, ItemData itemData, ItemManager itemManager, int quantity)
+	public CompletableFuture<ItemData> CheckRarityNPC(int npcId, ItemData itemData, ItemManager itemManager, int quantity)
 	{
+		CompletableFuture<ItemData> f = new CompletableFuture<>();
+
 		// Call this before the API call so we're in the main clients thread.
 		ItemComposition ic = itemManager.getItemComposition(itemData.ItemId);
 		String origName = ic.getName();
@@ -122,58 +127,71 @@ public class RarityChecker
 			}
 		}
 
-		String className = npcName.replaceAll("[^a-zA-Z0-9]", "");
-		List<ItemData> npcDrops = null;
-
-		try {
-			BaseNPC npcClass = (BaseNPC) Class.forName("com.masterkenth.drops." + className).getDeclaredConstructor().newInstance();
-			npcDrops = npcClass.getDrops();
-		} catch (Exception e) {}
-
-		if(npcDrops != null && npcDrops.size() > 0) {
-			for (Integer id : idVariations)
+		JsonUtils.getInstance().getNpcDropList(npcId).thenAccept(drops ->
+		{
+			try
 			{
-				ItemData item = npcDrops.stream().filter((i) -> Objects.equals(i.ItemId, id)).findFirst().orElse(null);
+				HashMap<Integer, JSONObject> jsonObjects = new HashMap<>();
 
-				if(item != null) {
-					String dropQuantityStr = item.Quantity;
-					String[] quantityParts = dropQuantityStr.split("-");
-					if (quantityParts.length == 2)
-					{
-						try
-						{
-							int dropQuantityMin = Integer.parseInt(quantityParts[0]);
-							int dropQuantityMax = Integer.parseInt(quantityParts[1]);
-							if (quantity < dropQuantityMin || quantity > dropQuantityMax)
-								continue;
-						}
-						catch (Exception ex)
-						{
-							ex.printStackTrace();
-							// Assume it matches;
-						}
-					}
-					else
-					{
-						try
-						{
-							int dropQuantity = Integer.parseInt(dropQuantityStr);
-							if (dropQuantity != quantity)
-								continue;
-
-						} catch (Exception ex)
-						{
-							ex.printStackTrace();
-							// Assume it matches;
-						}
-					}
-
-					itemData.Rarity = item.Rarity;
-					itemData.Unique = item.Unique;
+				for (int i = 0; i < drops.length(); i++)
+				{
+					JSONObject drop = drops.getJSONObject(i);
+					int dropId = drop.getInt("id");
+					jsonObjects.put(dropId, drop);
 				}
-			}
-		}
 
-		return itemData;
+				for (Integer id : idVariations)
+				{
+					if (jsonObjects.containsKey(id))
+					{
+						JSONObject drop = jsonObjects.get(id);
+						itemData.Rarity = drop.getFloat("rarity");
+						String dropQuantityStr = drop.getString("quantity");
+						String[] quantityParts = dropQuantityStr.split("-");
+						if (quantityParts.length == 2)
+						{
+							try
+							{
+								int dropQuantityMin = Integer.parseInt(quantityParts[0]);
+								int dropQuantityMax = Integer.parseInt(quantityParts[1]);
+								if (quantity < dropQuantityMin || quantity > dropQuantityMax)
+									continue;
+							}
+							catch (Exception ex)
+							{
+								ex.printStackTrace();
+								// Assume it matches;
+							}
+						}
+						else
+						{
+							try
+							{
+								int dropQuantity = Integer.parseInt(dropQuantityStr);
+								if (dropQuantity != quantity)
+									continue;
+							} catch (Exception ex)
+							{
+								ex.printStackTrace();
+								// Assume it matches;
+							}
+						}
+
+						itemData.Unique = false;
+						f.complete(itemData);
+						return;
+					}
+				}
+
+				// No entry for item, default to 100% drop
+				f.complete(itemData);
+			}
+			catch (Exception e)
+			{
+				f.completeExceptionally(e);
+			}
+		});
+
+		return f;
 	}
 }
