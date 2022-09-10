@@ -34,7 +34,6 @@ import net.runelite.client.RuneLite;
 import okhttp3.Cache;
 import okhttp3.Call;
 import okhttp3.Callback;
-import okhttp3.HttpUrl;
 import okhttp3.MediaType;
 import okhttp3.MultipartBody;
 import okhttp3.OkHttpClient;
@@ -42,13 +41,9 @@ import okhttp3.Request;
 import okhttp3.RequestBody;
 import okhttp3.Response;
 import okhttp3.ResponseBody;
-import org.jsoup.Jsoup;
-import org.jsoup.nodes.Document;
-import org.jsoup.nodes.Element;
 
 public class ApiTool
 {
-	private static final String WIKI_ROOT = "oldschool.runescape.wiki";
 	private static ApiTool _instance;
 
 	private OkHttpClient httpClient = null;
@@ -103,7 +98,7 @@ public class ApiTool
 			}
 
 			@Override
-			public void onResponse(Call call, Response response) throws IOException
+			public void onResponse(Call call, Response response)
 			{
 				try (ResponseBody responseBody = response.body())
 				{

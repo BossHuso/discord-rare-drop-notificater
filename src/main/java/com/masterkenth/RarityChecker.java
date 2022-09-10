@@ -27,16 +27,13 @@
  */
 package com.masterkenth;
 
-import java.util.Collection;
-import java.util.HashMap;
-import java.util.HashSet;
-import java.util.Map;
-import java.util.concurrent.CompletableFuture;
+import java.util.*;
+
+import com.masterkenth.drops.BaseNPC;
 import lombok.extern.slf4j.Slf4j;
 import net.runelite.api.ItemComposition;
 import net.runelite.client.game.ItemManager;
 import net.runelite.client.game.ItemVariationMapping;
-import org.json.JSONObject;
 
 @Slf4j
 public class RarityChecker
@@ -106,10 +103,8 @@ public class RarityChecker
 		return item;
 	}
 
-	public CompletableFuture<ItemData> CheckRarityNPC(int npcId, ItemData itemData, ItemManager itemManager, int quantity)
+	public ItemData CheckRarityNPC(String npcName, ItemData itemData, ItemManager itemManager, int quantity)
 	{
-		CompletableFuture<ItemData> f = new CompletableFuture<>();
-
 		// Call this before the API call so we're in the main clients thread.
 		ItemComposition ic = itemManager.getItemComposition(itemData.ItemId);
 		String origName = ic.getName();
@@ -127,71 +122,58 @@ public class RarityChecker
 			}
 		}
 
-		JsonUtils.getInstance().getNpcDropList(npcId).thenAccept(drops ->
-		{
-			try
+		String className = npcName.replaceAll("[^a-zA-Z0-9]", "");
+		List<ItemData> npcDrops = null;
+
+		try {
+			BaseNPC npcClass = (BaseNPC) Class.forName("com.masterkenth.drops." + className).getDeclaredConstructor().newInstance();
+			npcDrops = npcClass.getDrops();
+		} catch (Exception e) {}
+
+		if(npcDrops != null && npcDrops.size() > 0) {
+			for (Integer id : idVariations)
 			{
-				HashMap<Integer, JSONObject> jsonObjects = new HashMap<>();
+				ItemData item = npcDrops.stream().filter((i) -> Objects.equals(i.ItemId, id)).findFirst().orElse(null);
 
-				for (int i = 0; i < drops.length(); i++)
-				{
-					JSONObject drop = drops.getJSONObject(i);
-					int dropId = drop.getInt("id");
-					jsonObjects.put(dropId, drop);
-				}
-
-				for (Integer id : idVariations)
-				{
-					if (jsonObjects.containsKey(id))
+				if(item != null) {
+					String dropQuantityStr = item.Quantity;
+					String[] quantityParts = dropQuantityStr.split("-");
+					if (quantityParts.length == 2)
 					{
-						JSONObject drop = jsonObjects.get(id);
-						itemData.Rarity = drop.getFloat("rarity");
-						String dropQuantityStr = drop.getString("quantity");
-						String[] quantityParts = dropQuantityStr.split("-");
-						if (quantityParts.length == 2)
+						try
 						{
-							try
-							{
-								int dropQuantityMin = Integer.parseInt(quantityParts[0]);
-								int dropQuantityMax = Integer.parseInt(quantityParts[1]);
-								if (quantity < dropQuantityMin || quantity > dropQuantityMax)
-									continue;
-							}
-							catch (Exception ex)
-							{
-								ex.printStackTrace();
-								// Assume it matches;
-							}
+							int dropQuantityMin = Integer.parseInt(quantityParts[0]);
+							int dropQuantityMax = Integer.parseInt(quantityParts[1]);
+							if (quantity < dropQuantityMin || quantity > dropQuantityMax)
+								continue;
 						}
-						else
+						catch (Exception ex)
 						{
-							try
-							{
-								int dropQuantity = Integer.parseInt(dropQuantityStr);
-								if (dropQuantity != quantity)
-									continue;
-							} catch (Exception ex)
-							{
-								ex.printStackTrace();
-								// Assume it matches;
-							}
+							ex.printStackTrace();
+							// Assume it matches;
 						}
-
-						itemData.Unique = false;
-						f.complete(itemData);
-						return;
 					}
+					else
+					{
+						try
+						{
+							int dropQuantity = Integer.parseInt(dropQuantityStr);
+							if (dropQuantity != quantity)
+								continue;
+
+						} catch (Exception ex)
+						{
+							ex.printStackTrace();
+							// Assume it matches;
+						}
+					}
+
+					itemData.Rarity = item.Rarity;
+					itemData.Unique = item.Unique;
 				}
-
-				// No entry for item, default to 100% drop
-				f.complete(itemData);
 			}
-			catch (Exception e)
-			{
-				f.completeExceptionally(e);
-			}
-		});
+		}
 
-		return f;
+		return itemData;
 	}
 }

@@ -1,0 +1,23 @@
+package com.masterkenth.drops;
+
+import com.masterkenth.ItemData;
+import java.util.ArrayList;
+
+import java.util.List;
+
+public class Dungeonrat implements BaseNPC {
+    public List<ItemData> drops;
+
+    public Dungeonrat() {
+        drops = new ArrayList<>();
+        drops.add(new ItemData(526, 1f, "1", false));
+        drops.add(new ItemData(2134, 1f, "1", false));
+        drops.add(new ItemData(7824, 1f, "1", false));
+        drops.add(new ItemData(23182, 0.0078125f, "1", false));
+        drops.add(new ItemData(300, 1f, "1", false));
+    }
+
+    public List<ItemData> getDrops() {
+        return drops;
+    }
+}
