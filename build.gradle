@@ -12,12 +12,12 @@ repositories {
 	mavenCentral()
 }
 
-def runeLiteVersion = '1.8.33'
+def runeLiteVersion = 'latest.release'
 
 dependencies {
 	compileOnly group: 'net.runelite', name:'client', version: runeLiteVersion
-    implementation group: 'org.json', name: 'json', version: '20200518'
-    implementation group: 'org.jsoup', name: 'jsoup', version: '1.13.1'
+    implementation group: 'org.json', name: 'json', version: '20220320'
+    implementation group: 'org.jsoup', name: 'jsoup', version: '1.15.3'
 
 	testImplementation 'junit:junit:4.13.2'
 	testImplementation group: 'net.runelite', name:'client', version: runeLiteVersion
@@ -34,7 +34,7 @@ group = 'com.masterkenth'
 version = '1.4.1'
 sourceCompatibility = '1.8'
 
-tasks.withType(JavaCompile) {
-    options.compilerArgs << "-Xlint:unchecked" << "-Xlint:deprecation"
+tasks.withType(JavaCompile).configureEach {
+	options.compilerArgs << "-Xlint:unchecked" << "-Xlint:deprecation"
 	options.encoding = 'UTF-8'
 }
