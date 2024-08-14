@@ -505,7 +505,7 @@ public enum EventRarity
 	CLUE_SCROLL_MEDIUM_GREEN_HEADBAND("clue scroll (medium)", ItemID.GREEN_HEADBAND, 1f / 1133f, true),
 	CLUE_SCROLL_MEDIUM_CRIER_HAT("clue scroll (medium)", ItemID.CRIER_HAT, 1f / 1133f, true),
 	CLUE_SCROLL_MEDIUM_ADAMANT_CANE("clue scroll (medium)", ItemID.ADAMANT_CANE, 1f / 1133f, true),
-	CLUE_SCROLL_MEDIUM_CAT_MASK("clue scroll (medium)", ItemID.CAT_MASK, 1f / 1133f, true),
+	CLUE_SCROLL_MEDIUM_CAT_MASK("clue scroll (medium)", ItemID.CAT_H, 1f / 1133f, true),
 	CLUE_SCROLL_MEDIUM_PENGUIN_MASK("clue scroll (medium)", ItemID.PENGUIN_MASK, 1f / 1133f, true),
 	CLUE_SCROLL_MEDIUM_LEPRECHAUN_HAT("clue scroll (medium)", ItemID.LEPRECHAUN_HAT, 1f / 1133f, true),
 	CLUE_SCROLL_MEDIUM_CRIER_COAT("clue scroll (medium)", ItemID.CRIER_COAT, 1f / 1133f, true),
