@@ -17,22 +17,22 @@ public class JsonUtils
 	private static JsonUtils _instance;
 	private final List<Npc> npcList;
 
-	public static JsonUtils getInstance()
+	public static JsonUtils getInstance(Gson gson)
 	{
 		if (_instance == null)
 		{
-			_instance = new JsonUtils();
+			_instance = new JsonUtils(gson);
 		}
 
 		return _instance;
 	}
 
-	public JsonUtils()
+	public JsonUtils(Gson gson)
 	{
 		try(InputStreamReader reader = new InputStreamReader(
 				Objects.requireNonNull(DiscordRareDropNotificaterPlugin.class.getResourceAsStream("/monster-drops.json")),
 				StandardCharsets.UTF_8)) {
-			npcList = new Gson().fromJson(reader, new TypeToken<List<Npc>>() {}.getType());
+			npcList = gson.fromJson(reader, new TypeToken<List<Npc>>() {}.getType());
 		}
 		catch (Exception e)
 		{

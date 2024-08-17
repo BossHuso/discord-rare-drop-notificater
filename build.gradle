@@ -1,7 +1,7 @@
 plugins {
 	id 'java'
 	id 'idea'
-    id "io.freefair.lombok" version "5.3.0"
+	id "io.freefair.lombok" version "5.3.0"
 }
 
 repositories {
@@ -16,8 +16,8 @@ def runeLiteVersion = 'latest.release'
 
 dependencies {
 	compileOnly group: 'net.runelite', name:'client', version: runeLiteVersion
-    implementation group: 'org.json', name: 'json', version: '20200518'
-    implementation group: 'org.jsoup', name: 'jsoup', version: '1.13.1'
+	implementation group: 'org.json', name: 'json', version: '20200518'
+	implementation group: 'org.jsoup', name: 'jsoup', version: '1.13.1'
 
 	testImplementation 'junit:junit:4.13.2'
 	testImplementation group: 'net.runelite', name:'client', version: runeLiteVersion
@@ -31,7 +31,7 @@ idea {
 }
 
 group = 'com.masterkenth'
-version = '1.4.1'
+version = '1.4.2'
 sourceCompatibility = '1.8'
 
 tasks.withType(JavaCompile).configureEach {

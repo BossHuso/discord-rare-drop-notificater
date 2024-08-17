@@ -77,7 +77,7 @@ public interface DiscordRareDropNotificaterConfig extends Config
 
 	@ConfigItem(
 		keyName = "minrarity",
-		name = "Min NPC Rarity (1/x)",
+		name = "Min NPC rarity (1/x)",
 		description = "NPC drops more rare than this are posted to Discord",
 		section = itemFiltersSection,
 		position = 1
@@ -89,7 +89,7 @@ public interface DiscordRareDropNotificaterConfig extends Config
 
 	@ConfigItem(
 		keyName = "minvalue",
-		name = "Min NPC Value",
+		name = "Min NPC value",
 		description = "NPC drops more valuable (GE or HA) than this are posted to Discord",
 		section = itemFiltersSection,
 		position = 2

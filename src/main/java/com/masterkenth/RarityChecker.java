@@ -30,6 +30,7 @@ package com.masterkenth;
 import java.util.*;
 import java.util.concurrent.CompletableFuture;
 
+import com.google.gson.Gson;
 import com.masterkenth.models.Npc;
 import com.masterkenth.models.NpcItem;
 import lombok.extern.slf4j.Slf4j;
@@ -41,6 +42,13 @@ import org.json.JSONObject;
 @Slf4j
 public class RarityChecker
 {
+	private Gson gson;
+
+	public RarityChecker(Gson gson)
+	{
+		this.gson = gson;
+	}
+
 	public ItemData CheckRarityEvent(String eventName, ItemData item, ItemManager itemManager)
 	{
 		String lowerName = eventName.toLowerCase();
@@ -130,7 +138,7 @@ public class RarityChecker
 
 		try
 		{
-			Npc npcDrops = JsonUtils.getInstance().getNpc(npcName);
+			Npc npcDrops = JsonUtils.getInstance(this.gson).getNpc(npcName);
 
 			if(npcDrops != null) {
 				for (Integer id : idVariations)

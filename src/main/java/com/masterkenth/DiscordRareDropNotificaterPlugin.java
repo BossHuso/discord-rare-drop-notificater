@@ -28,6 +28,7 @@
 package com.masterkenth;
 
 import com.google.common.collect.ImmutableList;
+import com.google.gson.Gson;
 import com.google.inject.Provides;
 import com.masterkenth.discord.Author;
 import com.masterkenth.discord.Embed;
@@ -53,6 +54,7 @@ import net.runelite.api.ChatMessageType;
 import net.runelite.api.Client;
 import net.runelite.api.ItemComposition;
 import net.runelite.api.NPC;
+import net.runelite.api.Varbits;
 import net.runelite.api.events.ChatMessage;
 import net.runelite.client.callback.ClientThread;
 import net.runelite.client.config.ConfigManager;
@@ -66,6 +68,7 @@ import net.runelite.client.plugins.loottracker.LootReceived;
 import net.runelite.client.ui.DrawManager;
 import net.runelite.http.api.loottracker.LootRecordType;
 import okhttp3.HttpUrl;
+import okhttp3.OkHttpClient;
 import org.json.JSONObject;
 
 @Slf4j
@@ -96,7 +99,13 @@ public class DiscordRareDropNotificaterPlugin extends Plugin
 	@Inject
 	private DrawManager drawManager;
 
-	private final RarityChecker rarityChecker = new RarityChecker();
+	@Inject
+	private Gson gson;
+
+	@Inject
+	private OkHttpClient httpClient;
+
+	private final RarityChecker rarityChecker = new RarityChecker(gson);
 
 	private CompletableFuture<java.awt.Image> queuedScreenshot = null;
 
@@ -109,10 +118,11 @@ public class DiscordRareDropNotificaterPlugin extends Plugin
 	@Override
 	protected void startUp() throws Exception
 	{
-		JsonUtils.getInstance();
+		JsonUtils.getInstance(gson);
 		super.startUp();
 	}
 
+	@SuppressWarnings("unchecked")
 	@Subscribe
 	public void onNpcLootReceived(NpcLootReceived npcLootReceived)
 	{
@@ -493,7 +503,7 @@ public class DiscordRareDropNotificaterPlugin extends Plugin
 		}
 
 		Image thumbnail = new Image();
-		String iconUrl = ApiTool.getInstance().getIconUrl(itemId);
+		String iconUrl = ApiTool.getInstance(httpClient).getIconUrl(itemId);
 		thumbnail.setUrl(iconUrl);
 		embed.setThumbnail(thumbnail);
 
@@ -571,7 +581,7 @@ public class DiscordRareDropNotificaterPlugin extends Plugin
 
 		List<Throwable> exceptions = new ArrayList<>();
 		List<CompletableFuture<Void>> sends = webhookUrls.stream()
-			.map(url -> ApiTool.getInstance().postRaw(url, jsonStr, "application/json").handle((_v, e) ->
+			.map(url -> ApiTool.getInstance(httpClient).postRaw(url, jsonStr, "application/json").handle((_v, e) ->
 			{
 				if (e != null)
 				{
@@ -606,7 +616,7 @@ public class DiscordRareDropNotificaterPlugin extends Plugin
 
 			List<Throwable> exceptions = new ArrayList<>();
 			List<CompletableFuture<Void>> sends = webhookUrls.stream()
-				.map(url -> ApiTool.getInstance().postFormImage(url, imageBytes, "image/png").handle((_v, e) ->
+				.map(url -> ApiTool.getInstance(httpClient).postFormImage(url, imageBytes, "image/png").handle((_v, e) ->
 				{
 					if (e != null)
 					{
@@ -699,17 +709,18 @@ public class DiscordRareDropNotificaterPlugin extends Plugin
 
 	private String getPlayerIconUrl()
 	{
-		switch (client.getAccountType())
+		switch (client.getVarbitValue(Varbits.ACCOUNT_TYPE))
 		{
-			case IRONMAN:
+			case 1:
 				return "https://oldschool.runescape.wiki/images/0/09/Ironman_chat_badge.png";
-			case HARDCORE_IRONMAN:
+			case 3:
 				return "https://oldschool.runescape.wiki/images/b/b8/Hardcore_ironman_chat_badge.png";
-			case ULTIMATE_IRONMAN:
+			case 2:
 				return "https://oldschool.runescape.wiki/images/0/02/Ultimate_ironman_chat_badge.png";
-			case GROUP_IRONMAN:
+			case 4:
+			case 6:
 				return "https://oldschool.runescape.wiki/images/Group_ironman_chat_badge.png";
-			case HARDCORE_GROUP_IRONMAN:
+			case 5:
 				return "https://oldschool.runescape.wiki/images/Hardcore_group_ironman_chat_badge.png";
 			default:
 				return null;

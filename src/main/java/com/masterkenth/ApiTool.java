@@ -48,12 +48,12 @@ public class ApiTool
 
 	private OkHttpClient httpClient = null;
 
-	public static ApiTool getInstance()
+	public static ApiTool getInstance(OkHttpClient httpClient)
 	{
 		if (_instance == null)
 		{
 			_instance = new ApiTool();
-			_instance.httpClient = new OkHttpClient.Builder()
+			_instance.httpClient = httpClient.newBuilder()
 				.cache(new Cache(new File(RuneLite.CACHE_DIR, "okhttp_drdn"), 20 * 1024 * 1024)) // 20mb cache
 				.build();
 		}
