@@ -28,7 +28,6 @@
 package com.masterkenth;
 
 import com.google.common.collect.ImmutableList;
-import com.google.gson.Gson;
 import com.google.inject.Provides;
 import com.masterkenth.discord.Author;
 import com.masterkenth.discord.Embed;
@@ -100,12 +99,10 @@ public class DiscordRareDropNotificaterPlugin extends Plugin
 	private DrawManager drawManager;
 
 	@Inject
-	private Gson gson;
-
-	@Inject
 	private OkHttpClient httpClient;
 
-	private final RarityChecker rarityChecker = new RarityChecker(gson);
+	@Inject
+	private RarityChecker rarityChecker;
 
 	private CompletableFuture<java.awt.Image> queuedScreenshot = null;
 
@@ -113,13 +110,6 @@ public class DiscordRareDropNotificaterPlugin extends Plugin
 	DiscordRareDropNotificaterConfig provideConfig(ConfigManager configManager)
 	{
 		return configManager.getConfig(DiscordRareDropNotificaterConfig.class);
-	}
-
-	@Override
-	protected void startUp() throws Exception
-	{
-		JsonUtils.getInstance(gson);
-		super.startUp();
 	}
 
 	@SuppressWarnings("unchecked")
