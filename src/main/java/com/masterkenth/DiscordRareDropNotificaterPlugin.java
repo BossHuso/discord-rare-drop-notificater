@@ -67,7 +67,6 @@ import net.runelite.client.plugins.loottracker.LootReceived;
 import net.runelite.client.ui.DrawManager;
 import net.runelite.http.api.loottracker.LootRecordType;
 import okhttp3.HttpUrl;
-import okhttp3.OkHttpClient;
 import org.json.JSONObject;
 
 @Slf4j
@@ -99,7 +98,7 @@ public class DiscordRareDropNotificaterPlugin extends Plugin
 	private DrawManager drawManager;
 
 	@Inject
-	private OkHttpClient httpClient;
+	private ApiTool apiTool;
 
 	@Inject
 	private RarityChecker rarityChecker;
@@ -493,7 +492,7 @@ public class DiscordRareDropNotificaterPlugin extends Plugin
 		}
 
 		Image thumbnail = new Image();
-		String iconUrl = ApiTool.getInstance(httpClient).getIconUrl(itemId);
+		String iconUrl = ApiTool.getIconUrl(itemId);
 		thumbnail.setUrl(iconUrl);
 		embed.setThumbnail(thumbnail);
 
@@ -571,7 +570,7 @@ public class DiscordRareDropNotificaterPlugin extends Plugin
 
 		List<Throwable> exceptions = new ArrayList<>();
 		List<CompletableFuture<Void>> sends = webhookUrls.stream()
-			.map(url -> ApiTool.getInstance(httpClient).postRaw(url, jsonStr, "application/json").handle((_v, e) ->
+			.map(url -> apiTool.postRaw(url, jsonStr, "application/json").handle((_v, e) ->
 			{
 				if (e != null)
 				{
@@ -606,7 +605,7 @@ public class DiscordRareDropNotificaterPlugin extends Plugin
 
 			List<Throwable> exceptions = new ArrayList<>();
 			List<CompletableFuture<Void>> sends = webhookUrls.stream()
-				.map(url -> ApiTool.getInstance(httpClient).postFormImage(url, imageBytes, "image/png").handle((_v, e) ->
+				.map(url -> apiTool.postFormImage(url, imageBytes, "image/png").handle((_v, e) ->
 				{
 					if (e != null)
 					{
