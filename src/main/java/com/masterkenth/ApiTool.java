@@ -27,11 +27,6 @@
  */
 package com.masterkenth;
 
-import java.io.File;
-import java.io.IOException;
-import java.util.concurrent.CompletableFuture;
-import net.runelite.client.RuneLite;
-import okhttp3.Cache;
 import okhttp3.Call;
 import okhttp3.Callback;
 import okhttp3.MediaType;
@@ -42,26 +37,16 @@ import okhttp3.RequestBody;
 import okhttp3.Response;
 import okhttp3.ResponseBody;
 
+import javax.inject.Inject;
+import java.io.IOException;
+import java.util.concurrent.CompletableFuture;
+
 public class ApiTool
 {
-	private static ApiTool _instance;
+	@Inject
+	private OkHttpClient httpClient;
 
-	private OkHttpClient httpClient = null;
-
-	public static ApiTool getInstance(OkHttpClient httpClient)
-	{
-		if (_instance == null)
-		{
-			_instance = new ApiTool();
-			_instance.httpClient = httpClient.newBuilder()
-				.cache(new Cache(new File(RuneLite.CACHE_DIR, "okhttp_drdn"), 20 * 1024 * 1024)) // 20mb cache
-				.build();
-		}
-		return _instance;
-	}
-
-
-	public String getIconUrl(int id)
+	public static String getIconUrl(int id)
 	{
 		return String.format("https://static.runelite.net/cache/item/icon/%d.png", id);
 	}

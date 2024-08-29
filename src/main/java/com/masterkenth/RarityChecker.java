@@ -30,24 +30,20 @@ package com.masterkenth;
 import java.util.*;
 import java.util.concurrent.CompletableFuture;
 
-import com.google.gson.Gson;
 import com.masterkenth.models.Npc;
 import com.masterkenth.models.NpcItem;
 import lombok.extern.slf4j.Slf4j;
 import net.runelite.api.ItemComposition;
 import net.runelite.client.game.ItemManager;
 import net.runelite.client.game.ItemVariationMapping;
-import org.json.JSONObject;
+
+import javax.inject.Inject;
 
 @Slf4j
 public class RarityChecker
 {
-	private Gson gson;
-
-	public RarityChecker(Gson gson)
-	{
-		this.gson = gson;
-	}
+	@Inject
+	private JsonUtils jsonUtils;
 
 	public ItemData CheckRarityEvent(String eventName, ItemData item, ItemManager itemManager)
 	{
@@ -138,7 +134,7 @@ public class RarityChecker
 
 		try
 		{
-			Npc npcDrops = JsonUtils.getInstance(this.gson).getNpc(npcName);
+			Npc npcDrops = jsonUtils.getNpc(npcName);
 
 			if(npcDrops != null) {
 				for (Integer id : idVariations)

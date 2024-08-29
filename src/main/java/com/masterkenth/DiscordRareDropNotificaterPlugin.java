@@ -28,7 +28,6 @@
 package com.masterkenth;
 
 import com.google.common.collect.ImmutableList;
-import com.google.gson.Gson;
 import com.google.inject.Provides;
 import com.masterkenth.discord.Author;
 import com.masterkenth.discord.Embed;
@@ -68,7 +67,6 @@ import net.runelite.client.plugins.loottracker.LootReceived;
 import net.runelite.client.ui.DrawManager;
 import net.runelite.http.api.loottracker.LootRecordType;
 import okhttp3.HttpUrl;
-import okhttp3.OkHttpClient;
 import org.json.JSONObject;
 
 @Slf4j
@@ -100,12 +98,10 @@ public class DiscordRareDropNotificaterPlugin extends Plugin
 	private DrawManager drawManager;
 
 	@Inject
-	private Gson gson;
+	private ApiTool apiTool;
 
 	@Inject
-	private OkHttpClient httpClient;
-
-	private final RarityChecker rarityChecker = new RarityChecker(gson);
+	private RarityChecker rarityChecker;
 
 	private CompletableFuture<java.awt.Image> queuedScreenshot = null;
 
@@ -113,13 +109,6 @@ public class DiscordRareDropNotificaterPlugin extends Plugin
 	DiscordRareDropNotificaterConfig provideConfig(ConfigManager configManager)
 	{
 		return configManager.getConfig(DiscordRareDropNotificaterConfig.class);
-	}
-
-	@Override
-	protected void startUp() throws Exception
-	{
-		JsonUtils.getInstance(gson);
-		super.startUp();
 	}
 
 	@SuppressWarnings("unchecked")
@@ -503,7 +492,7 @@ public class DiscordRareDropNotificaterPlugin extends Plugin
 		}
 
 		Image thumbnail = new Image();
-		String iconUrl = ApiTool.getInstance(httpClient).getIconUrl(itemId);
+		String iconUrl = ApiTool.getIconUrl(itemId);
 		thumbnail.setUrl(iconUrl);
 		embed.setThumbnail(thumbnail);
 
@@ -581,7 +570,7 @@ public class DiscordRareDropNotificaterPlugin extends Plugin
 
 		List<Throwable> exceptions = new ArrayList<>();
 		List<CompletableFuture<Void>> sends = webhookUrls.stream()
-			.map(url -> ApiTool.getInstance(httpClient).postRaw(url, jsonStr, "application/json").handle((_v, e) ->
+			.map(url -> apiTool.postRaw(url, jsonStr, "application/json").handle((_v, e) ->
 			{
 				if (e != null)
 				{
@@ -616,7 +605,7 @@ public class DiscordRareDropNotificaterPlugin extends Plugin
 
 			List<Throwable> exceptions = new ArrayList<>();
 			List<CompletableFuture<Void>> sends = webhookUrls.stream()
-				.map(url -> ApiTool.getInstance(httpClient).postFormImage(url, imageBytes, "image/png").handle((_v, e) ->
+				.map(url -> apiTool.postFormImage(url, imageBytes, "image/png").handle((_v, e) ->
 				{
 					if (e != null)
 					{

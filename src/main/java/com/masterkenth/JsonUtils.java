@@ -7,26 +7,19 @@ import java.util.Objects;
 
 import com.google.gson.Gson;
 import com.google.gson.reflect.TypeToken;
-import com.google.gson.stream.JsonReader;
 import com.masterkenth.models.Npc;
 import lombok.extern.slf4j.Slf4j;
 
+import javax.inject.Inject;
+import javax.inject.Singleton;
+
 @Slf4j
+@Singleton
 public class JsonUtils
 {
-	private static JsonUtils _instance;
 	private final List<Npc> npcList;
 
-	public static JsonUtils getInstance(Gson gson)
-	{
-		if (_instance == null)
-		{
-			_instance = new JsonUtils(gson);
-		}
-
-		return _instance;
-	}
-
+	@Inject
 	public JsonUtils(Gson gson)
 	{
 		try(InputStreamReader reader = new InputStreamReader(
