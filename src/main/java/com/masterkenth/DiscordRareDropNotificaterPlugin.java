@@ -280,11 +280,11 @@ public class DiscordRareDropNotificaterPlugin extends Plugin
 		String lowerName = comp.getName().toLowerCase();
 
 		List<String> whitelist = Arrays.stream(config.whiteListedItems()
-			.split(",")).filter(itemName -> itemName.length() > 0)
+			.split(",")).map(String::trim).filter(itemName -> itemName.length() > 0)
 			.map(String::toLowerCase).collect(Collectors.toList());
 
 		List<String> blacklist = Arrays.stream(config.ignoredKeywords()
-			.split(",")).filter(itemName -> itemName.length() > 0)
+			.split(",")).map(String::trim).filter(itemName -> itemName.length() > 0)
 			.map(String::toLowerCase).collect(Collectors.toList());
 
 		if(log.isDebugEnabled())
