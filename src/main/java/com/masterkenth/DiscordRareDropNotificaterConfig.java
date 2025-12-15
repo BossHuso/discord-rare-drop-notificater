@@ -108,7 +108,7 @@ public interface DiscordRareDropNotificaterConfig extends Config
 	)
 	default boolean andInsteadOfOr()
 	{
-		return false;
+		return true;
 	}
 
 	@ConfigItem(
