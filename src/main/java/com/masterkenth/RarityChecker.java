@@ -84,7 +84,7 @@ public class RarityChecker
 		}
 		else
 		{
-			log.warn(String.format("No event table for '%s'", eventName));
+			log.debug(String.format("No event table for '%s'", eventName));
 		}
 		if (rarityInfo != null)
 		{
@@ -93,7 +93,7 @@ public class RarityChecker
 		}
 		else
 		{
-			log.warn(String.format("no rarity for item %d in table '%s'", item.ItemId, eventName));
+			log.debug(String.format("no rarity for item %d in table '%s'", item.ItemId, eventName));
 		}
 		return item;
 	}
