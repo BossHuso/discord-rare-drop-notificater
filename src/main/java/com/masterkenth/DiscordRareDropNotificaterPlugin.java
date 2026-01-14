@@ -73,7 +73,7 @@ import org.json.JSONObject;
 @PluginDescriptor(
 	name = "Discord Rare Drop Notificater",
 	description = "Sends a detailed notification via Discord webhooks whenever you get a rare/unique drop.",
-	tags = {"discord", "loot", "unique", "boss", "notification"}
+	tags = {"discord", "loot", "unique", "boss", "notification", "webhook", "rare", "drop"}
 )
 public class DiscordRareDropNotificaterPlugin extends Plugin
 {
@@ -280,11 +280,11 @@ public class DiscordRareDropNotificaterPlugin extends Plugin
 		String lowerName = comp.getName().toLowerCase();
 
 		List<String> whitelist = Arrays.stream(config.whiteListedItems()
-			.split(",")).filter(itemName -> itemName.length() > 0)
+			.split(",")).map(String::trim).filter(itemName -> itemName.length() > 0)
 			.map(String::toLowerCase).collect(Collectors.toList());
 
 		List<String> blacklist = Arrays.stream(config.ignoredKeywords()
-			.split(",")).filter(itemName -> itemName.length() > 0)
+			.split(",")).map(String::trim).filter(itemName -> itemName.length() > 0)
 			.map(String::toLowerCase).collect(Collectors.toList());
 
 		if(log.isDebugEnabled())
@@ -305,19 +305,6 @@ public class DiscordRareDropNotificaterPlugin extends Plugin
 			return result;
 		}
 
-		if(blacklist.stream().anyMatch(lowerName::equals)){
-			// Exact match with blacklist
-			// must be ignored
-
-			if(log.isDebugEnabled())
-			{
-				log.debug("We're blacklisted. We cannot be sent");
-			}
-
-			result.complete(false);
-			return result;
-		}
-
 		if(whitelist.stream().anyMatch(lowerName::contains)){
 			// Fuzzy whitelist
 			// is accepted
@@ -328,6 +315,62 @@ public class DiscordRareDropNotificaterPlugin extends Plugin
 			}
 
 			result.complete(true);
+			return result;
+		}
+
+		// Always send rarity and value
+		int forceRarity = config.AlwaysSendRarity();
+		int forceValue = config.AlwaysSendValue();
+
+		if (forceRarity > 0 || forceValue > 0)
+		{
+			if(log.isDebugEnabled())
+			{
+				log.debug("We're above force-send values. We must be sent.");
+			}
+			return itemDataSupplier.get().thenApply(itemData ->
+			{
+				if (itemData == null)
+				{
+					return false;
+				}
+
+				int totalGeValue = itemData.GePrice * quantity;
+				int totalHaValue = itemData.HaPrice * quantity;
+
+				boolean rarityOverride =
+						forceRarity > 0 && itemData.Rarity <= (1f / forceRarity);
+
+				boolean valueOverride =
+						forceValue > 0 && (totalGeValue >= forceValue || totalHaValue >= forceValue);
+
+				if (rarityOverride || valueOverride)
+				{
+					if (log.isDebugEnabled())
+					{
+						log.debug(
+								"Force-broadcasting {} due to {} override",
+								itemManager.getItemComposition(itemId).getName(),
+								rarityOverride ? "rarity" : "value"
+						);
+					}
+					return true;
+				}
+
+				return meetsRequirements(itemData, quantity);
+			});
+		}
+
+		if(blacklist.stream().anyMatch(lowerName::equals)){
+			// Exact match with blacklist
+			// must be ignored
+
+			if(log.isDebugEnabled())
+			{
+				log.debug("We're blacklisted. We cannot be sent");
+			}
+
+			result.complete(false);
 			return result;
 		}
 
@@ -348,14 +391,14 @@ public class DiscordRareDropNotificaterPlugin extends Plugin
 			log.debug("We're not in any item list. We need to continue our check.");
 		}
 
-
+		// Normal send requirements
 		return itemDataSupplier.get().thenCompose(itemData -> {
 			result.complete(meetsRequirements(itemData, quantity));
 			return result;
 		});
 	}
 
-	private CompletableFuture<Boolean> processEventNotification(LootRecordType lootRecordType, String eventName, int itemId, int quantity)
+		private CompletableFuture<Boolean> processEventNotification(LootRecordType lootRecordType, String eventName, int itemId, int quantity)
 	{
 		ItemData itemData = lootRecordType == LootRecordType.PICKPOCKET ? rarityChecker.CheckRarityPickpocket(eventName, EnrichItem(itemId), itemManager) : rarityChecker.CheckRarityEvent(eventName, EnrichItem(itemId), itemManager);
 
@@ -698,18 +741,17 @@ public class DiscordRareDropNotificaterPlugin extends Plugin
 
 	private String getPlayerIconUrl()
 	{
-		switch (client.getVarbitValue(Varbits.ACCOUNT_TYPE))
+		switch (client.getAccountType())
 		{
-			case 1:
+			case IRONMAN:
 				return "https://oldschool.runescape.wiki/images/0/09/Ironman_chat_badge.png";
-			case 3:
+			case HARDCORE_IRONMAN:
 				return "https://oldschool.runescape.wiki/images/b/b8/Hardcore_ironman_chat_badge.png";
-			case 2:
+			case ULTIMATE_IRONMAN:
 				return "https://oldschool.runescape.wiki/images/0/02/Ultimate_ironman_chat_badge.png";
-			case 4:
-			case 6:
+			case GROUP_IRONMAN:
 				return "https://oldschool.runescape.wiki/images/Group_ironman_chat_badge.png";
-			case 5:
+			case HARDCORE_GROUP_IRONMAN:
 				return "https://oldschool.runescape.wiki/images/Hardcore_group_ironman_chat_badge.png";
 			default:
 				return null;
