@@ -30,7 +30,7 @@ dependencies {
 }
 
 group = 'com.masterkenth'
-version = '1.4.2'
+version = '1.4.3'
 
 tasks.withType(JavaCompile).configureEach {
 	options.compilerArgs << "-Xlint:unchecked" << "-Xlint:deprecation"

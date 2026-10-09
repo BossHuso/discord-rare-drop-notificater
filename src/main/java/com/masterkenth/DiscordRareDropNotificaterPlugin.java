@@ -51,11 +51,17 @@ import javax.inject.Inject;
 import lombok.extern.slf4j.Slf4j;
 import net.runelite.api.ChatMessageType;
 import net.runelite.api.Client;
+import net.runelite.api.GameState;
 import net.runelite.api.ItemComposition;
 import net.runelite.api.NPC;
 import net.runelite.api.events.ChatMessage;
+import net.runelite.api.events.GameStateChanged;
 import net.runelite.api.gameval.VarbitID;
 import net.runelite.client.callback.ClientThread;
+import net.runelite.client.chat.ChatColorType;
+import net.runelite.client.chat.ChatMessageBuilder;
+import net.runelite.client.chat.ChatMessageManager;
+import net.runelite.client.chat.QueuedMessage;
 import net.runelite.client.config.ConfigManager;
 import net.runelite.client.eventbus.Subscribe;
 import net.runelite.client.events.NpcLootReceived;
@@ -72,8 +78,8 @@ import org.json.JSONObject;
 @Slf4j
 @PluginDescriptor(
 	name = "Discord Rare Drop Notificater",
-	description = "Sends a detailed notification via Discord webhooks whenever you get a rare/unique drop.",
-	tags = {"discord", "loot", "unique", "boss", "notification"}
+	description = "Still works, but no new features - Dink is recommended. Sends Discord webhooks for rare drops.",
+	tags = {"discord", "loot", "unique", "boss", "notification", "dink"}
 )
 public class DiscordRareDropNotificaterPlugin extends Plugin
 {
@@ -103,12 +109,58 @@ public class DiscordRareDropNotificaterPlugin extends Plugin
 	@Inject
 	private RarityChecker rarityChecker;
 
+	@Inject
+	private ChatMessageManager chatMessageManager;
+
 	private CompletableFuture<java.awt.Image> queuedScreenshot = null;
+
+	// Shown once per login; world hops and loading screens also fire LOGGED_IN
+	private boolean dinkNoticeShown = false;
 
 	@Provides
 	DiscordRareDropNotificaterConfig provideConfig(ConfigManager configManager)
 	{
 		return configManager.getConfig(DiscordRareDropNotificaterConfig.class);
+	}
+
+	@Subscribe
+	public void onGameStateChanged(GameStateChanged event)
+	{
+		if (event.getGameState() == GameState.LOGIN_SCREEN)
+		{
+			dinkNoticeShown = false;
+		}
+		else if (event.getGameState() == GameState.LOGGED_IN && !dinkNoticeShown)
+		{
+			dinkNoticeShown = true;
+			if (config.showDinkNotice())
+			{
+				sendDinkNotice();
+			}
+		}
+	}
+
+	private void sendDinkNotice()
+	{
+		String message = new ChatMessageBuilder()
+			.append(ChatColorType.HIGHLIGHT)
+			.append("[Discord Rare Drop Notificater] ")
+			.append(ChatColorType.NORMAL)
+			.append("This plugin still works but won't get new features. ")
+			.append(ChatColorType.HIGHLIGHT)
+			.append("Dink")
+			.append(ChatColorType.NORMAL)
+			.append(" does everything it does and more, and can import your settings: install Dink, then type ")
+			.append(ChatColorType.HIGHLIGHT)
+			.append("::DinkMigrate rare")
+			.append(ChatColorType.NORMAL)
+			.append(". To hide this message, turn off \"Show Dink notice on login\" in this plugin's settings.")
+			.build();
+
+		chatMessageManager.queue(QueuedMessage.builder()
+			.type(ChatMessageType.CONSOLE)
+			.runeLiteFormattedMessage(message)
+			.build());
 	}
 
 	@SuppressWarnings("unchecked")

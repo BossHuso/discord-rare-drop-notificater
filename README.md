@@ -1,6 +1,19 @@
 # Discord Rare Drop Notifier
 __Plugin for RuneLite__
 
+> **⚠️ Maintenance mode: [Dink](https://runelite.net/plugin-hub/show/dink) is recommended.**
+> This plugin still works and will be kept working, but it won't get new features.
+> Dink does everything this plugin does, plus pets, collection log, levels, deaths, raids and more,
+> and it can import your settings:
+> 1. Install **Dink** from the Plugin Hub.
+> 2. In game, type `::DinkMigrate rare` (while this plugin is still enabled, so Dink turns on its loot notifications).
+> 3. Check Dink's loot settings, then turn this plugin off so drops are not posted twice.
+>
+> Not carried over: "Always send uniques" (Dink uses its value threshold and collection log notifications instead)
+> and "Send rarity and value" (Dink always includes them). Pet notifications are separate in Dink: check its pet notifier is on.
+>
+> A chat message on login points to Dink; turn off **Show Dink notice on login** in this plugin's settings to hide it.
+
 ![logo](readme-resources/logo.png)
 
 ## Description
