@@ -53,8 +53,8 @@ import net.runelite.api.ChatMessageType;
 import net.runelite.api.Client;
 import net.runelite.api.ItemComposition;
 import net.runelite.api.NPC;
-import net.runelite.api.Varbits;
 import net.runelite.api.events.ChatMessage;
+import net.runelite.api.gameval.VarbitID;
 import net.runelite.client.callback.ClientThread;
 import net.runelite.client.config.ConfigManager;
 import net.runelite.client.eventbus.Subscribe;
@@ -380,8 +380,8 @@ public class DiscordRareDropNotificaterPlugin extends Plugin
 			return true;
 		}
 
-		int totalGeValue = item.GePrice * quantity;
-		int totalHaValue = item.HaPrice * quantity;
+		long totalGeValue = item.GePrice * quantity;
+		long totalHaValue = item.HaPrice * quantity;
 
 		boolean valueMet = totalGeValue >= config.minValue() || totalHaValue >= config.minValue();
 		boolean rarityMet = item.Rarity <= (1f / config.minRarity());
@@ -480,7 +480,7 @@ public class DiscordRareDropNotificaterPlugin extends Plugin
 
 			Field haValueField = new Field();
 			haValueField.setName("HA Value");
-			haValueField.setValue(getGPValueString(itemManager.getItemComposition(itemId).getHaPrice() * quantity));
+			haValueField.setValue(getGPValueString((long) itemManager.getItemComposition(itemId).getHaPrice() * quantity));
 			haValueField.setInline(true);
 
 			Field geValueField = new Field();
@@ -686,7 +686,7 @@ public class DiscordRareDropNotificaterPlugin extends Plugin
 		}
 	}
 
-	private String getGPValueString(int value)
+	private String getGPValueString(long value)
 	{
 		return "```fix\n" + NumberFormat.getNumberInstance(Locale.US).format(value) + " GP\n```";
 	}
@@ -698,7 +698,7 @@ public class DiscordRareDropNotificaterPlugin extends Plugin
 
 	private String getPlayerIconUrl()
 	{
-		switch (client.getVarbitValue(Varbits.ACCOUNT_TYPE))
+		switch (client.getVarbitValue(VarbitID.IRONMAN))
 		{
 			case 1:
 				return "https://oldschool.runescape.wiki/images/0/09/Ironman_chat_badge.png";
