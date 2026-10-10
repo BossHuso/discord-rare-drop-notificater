@@ -28,6 +28,7 @@
 package com.masterkenth;
 
 import com.google.common.collect.ImmutableList;
+import com.google.gson.Gson;
 import com.google.inject.Provides;
 import com.masterkenth.discord.Author;
 import com.masterkenth.discord.Embed;
@@ -73,7 +74,6 @@ import net.runelite.client.plugins.loottracker.LootReceived;
 import net.runelite.client.ui.DrawManager;
 import net.runelite.http.api.loottracker.LootRecordType;
 import okhttp3.HttpUrl;
-import org.json.JSONObject;
 
 @Slf4j
 @PluginDescriptor(
@@ -111,6 +111,9 @@ public class DiscordRareDropNotificaterPlugin extends Plugin
 
 	@Inject
 	private ChatMessageManager chatMessageManager;
+
+	@Inject
+	private Gson gson;
 
 	private CompletableFuture<java.awt.Image> queuedScreenshot = null;
 
@@ -617,8 +620,7 @@ public class DiscordRareDropNotificaterPlugin extends Plugin
 
 	private CompletableFuture<Void> sendWebhookData(List<String> webhookUrls, Webhook webhookData)
 	{
-		JSONObject json = new JSONObject(webhookData);
-		String jsonStr = json.toString();
+		String jsonStr = gson.toJson(webhookData);
 
 		List<Throwable> exceptions = new ArrayList<>();
 		List<CompletableFuture<Void>> sends = webhookUrls.stream()
