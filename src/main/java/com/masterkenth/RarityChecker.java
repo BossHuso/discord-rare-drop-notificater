@@ -157,7 +157,7 @@ public class RarityChecker
 							}
 							catch (Exception ex)
 							{
-								ex.printStackTrace();
+								log.debug("Unparseable drop quantity '{}' for {}", dropQuantityStr, npcName, ex);
 								// Assume it matches;
 							}
 						}
@@ -170,7 +170,7 @@ public class RarityChecker
 									continue;
 							} catch (Exception ex)
 							{
-								ex.printStackTrace();
+								log.debug("Unparseable drop quantity '{}' for {}", dropQuantityStr, npcName, ex);
 								// Assume it matches;
 							}
 						}
