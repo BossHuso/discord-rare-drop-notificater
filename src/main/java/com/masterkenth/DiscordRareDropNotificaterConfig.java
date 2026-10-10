@@ -36,6 +36,27 @@ import net.runelite.client.config.ConfigSection;
 public interface DiscordRareDropNotificaterConfig extends Config
 {
 	@ConfigSection(
+			position = 0,
+			name = "\u26A0 Dink recommended - fixes only here",
+			description = "This plugin still works but won't get new features. Dink does everything it does and more.<br>"
+				+ "To switch: install Dink from the Plugin Hub, type ::DinkMigrate rare in game to import these settings,<br>"
+				+ "check Dink's loot settings, then turn this plugin off."
+	)
+	String dinkSection = "dinkSection";
+
+	@ConfigItem(
+		keyName = "showDinkNotice",
+		name = "Show Dink notice on login",
+		description = "Show a chat message on login recommending Dink and how to import these settings",
+		section = dinkSection,
+		position = 0
+	)
+	default boolean showDinkNotice()
+	{
+		return true;
+	}
+
+	@ConfigSection(
 			position = 1,
 			name = "Webhook Options",
 			description = "Manage how the plugin sends drops to your discord server"
